@@ -8,6 +8,10 @@ import { useAuth } from '@/context/AuthContext';
 import { initDatabase } from '@/utils/database';
 import { StoriesRow } from '@/components/story/StoriesRow';
 import { useStory } from '@/context/StoryContext';
+import { Settings, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { 
@@ -17,8 +21,10 @@ const Index = () => {
     isLoadingConversations,
     availableUsers 
   } = useMessaging();
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { stories } = useStory();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
   useEffect(() => {
     // Initialize database
@@ -29,6 +35,19 @@ const Index = () => {
     init();
   }, []);
   
+  const handleLogout = () => {
+    logout();
+    navigate('/auth');
+    toast({
+      title: 'Logged out',
+      description: 'You have been logged out successfully',
+    });
+  };
+
+  const handleGoToSettings = () => {
+    navigate('/settings');
+  };
+  
   // Find the active conversation
   const activeConversation = conversations.find(
     conv => conv.id === activeConversationId
@@ -37,6 +56,28 @@ const Index = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <div className="w-full md:w-1/3 border-r border-border flex flex-col h-full overflow-hidden">
+        <div className="p-3 border-b border-border flex justify-between items-center">
+          <h1 className="text-lg font-semibold">Messages</h1>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleGoToSettings}
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleLogout}
+              title="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+        
         <StoriesRow />
         
         {isLoadingConversations ? (
