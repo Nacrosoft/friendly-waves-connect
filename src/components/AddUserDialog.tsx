@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { getAllUsers } from '@/utils/database';
 import { User } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { useMessaging } from '@/context/MessagingContext';
 
 interface AddUserDialogProps {
   open: boolean;
@@ -19,6 +21,8 @@ export function AddUserDialog({ open, onOpenChange, onAddUser }: AddUserDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const { startNewConversation } = useMessaging();
 
   const handleSearch = async () => {
     if (!username.trim()) {
@@ -29,10 +33,15 @@ export function AddUserDialog({ open, onOpenChange, onAddUser }: AddUserDialogPr
     setIsLoading(true);
     try {
       const users = await getAllUsers();
+      console.log("All users:", users);
+      
       // Filter users by name containing the search term
       const filteredUsers = users.filter(user => 
-        user.name.toLowerCase().includes(username.toLowerCase())
+        user.name.toLowerCase().includes(username.toLowerCase()) &&
+        user.id !== currentUser?.id // Exclude current user from results
       );
+      
+      console.log("Filtered users:", filteredUsers);
       setSearchResults(filteredUsers);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -46,11 +55,25 @@ export function AddUserDialog({ open, onOpenChange, onAddUser }: AddUserDialogPr
     }
   };
 
-  const handleAddUser = (userId: string) => {
-    onAddUser(userId);
-    onOpenChange(false);
-    setUsername('');
-    setSearchResults([]);
+  const handleAddUser = async (userId: string) => {
+    try {
+      await startNewConversation(userId);
+      onOpenChange(false);
+      setUsername('');
+      setSearchResults([]);
+      
+      toast({
+        title: 'Success',
+        description: 'New conversation created',
+      });
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not create conversation',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -70,6 +93,11 @@ export function AddUserDialog({ open, onOpenChange, onAddUser }: AddUserDialogPr
                 placeholder="Search by username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
                 className="col-span-3"
               />
               <Button onClick={handleSearch} disabled={isLoading} type="button" variant="secondary">

@@ -8,13 +8,15 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare, PlusIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 // Import the StoriesRow component
 import { StoriesRow } from "@/components/story/StoriesRow";
 
 const Index = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const messagingContext = useMessaging();
   const { currentUser } = useAuth();
   const { conversations, selectedConversation, selectConversation } = messagingContext;
@@ -29,6 +31,11 @@ const Index = () => {
   const handleConversationSelect = (conversationId: string) => {
     setSelectedConversationId(conversationId);
     selectConversation(conversationId);
+  };
+
+  const handleAddUser = (userId: string) => {
+    console.log("Adding user:", userId);
+    messagingContext.startNewConversation(userId);
   };
 
   return (
@@ -54,10 +61,19 @@ const Index = () => {
               )}
             </div>
             <div className="p-3 border-t border-border">
+              <Button 
+                onClick={() => setIsAddUserDialogOpen(true)}
+                variant="outline"
+                className="w-full flex items-center gap-2"
+              >
+                <PlusIcon size={16} />
+                <span>New Conversation</span>
+              </Button>
+              
               <AddUserDialog 
-                open={false}
-                onOpenChange={() => {}}
-                onAddUser={() => {}}
+                open={isAddUserDialogOpen}
+                onOpenChange={setIsAddUserDialogOpen}
+                onAddUser={handleAddUser}
               />
             </div>
           </div>
