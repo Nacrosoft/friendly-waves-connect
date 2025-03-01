@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -98,9 +99,16 @@ export function ChatView({ conversation }: ChatViewProps) {
     scrollToBottom();
   }, [messages]);
 
+  // Find the other user in the conversation to pass to ChatHeader
+  const getOtherUser = () => {
+    if (!conversation || !currentUser) return null;
+    return conversation.participants.find(user => user.id !== currentUser.id);
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <ChatHeader conversation={conversation} currentUserId={currentUser?.id} />
+      {/* Updated to pass the other user instead of the whole conversation */}
+      <ChatHeader user={getOtherUser()} />
       
       <div
         ref={messagesContainerRef}
