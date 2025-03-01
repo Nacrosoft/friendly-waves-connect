@@ -359,7 +359,9 @@ export const saveCustomEmojiToSupabase = async (emoji: CustomEmoji): Promise<Cus
         id: emoji.id,
         user_id: emoji.userId,
         name: emoji.name,
-        url: emoji.url
+        url: emoji.url,
+        type: emoji.type || 'image',
+        created_at: emoji.createdAt
       });
     
     if (error) handleDBError(error, 'save custom emoji');
@@ -384,7 +386,9 @@ export const getCustomEmojisForUserFromSupabase = async (userId: string): Promis
       id: emoji.id,
       userId: emoji.user_id,
       name: emoji.name,
-      url: emoji.url
+      url: emoji.url,
+      type: emoji.type || 'image',
+      createdAt: new Date(emoji.created_at || Date.now())
     }));
   } catch (error) {
     handleDBError(error, 'get custom emojis');

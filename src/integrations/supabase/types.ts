@@ -9,7 +9,218 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      conversation_participants: {
+        Row: {
+          conversation_id: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          id: string
+          last_message_text: string | null
+          last_message_time: string | null
+          unread_count: number | null
+        }
+        Insert: {
+          id: string
+          last_message_text?: string | null
+          last_message_time?: string | null
+          unread_count?: number | null
+        }
+        Update: {
+          id?: string
+          last_message_text?: string | null
+          last_message_time?: string | null
+          unread_count?: number | null
+        }
+        Relationships: []
+      }
+      custom_emojis: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          type: string | null
+          url: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          name: string
+          type?: string | null
+          url: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          type?: string | null
+          url?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_emojis_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachment_url: string | null
+          conversation_id: string | null
+          deleted: boolean | null
+          edited: boolean | null
+          id: string
+          read: boolean | null
+          reply_to_id: string | null
+          sender_id: string | null
+          text: string | null
+          timestamp: string | null
+          type: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          conversation_id?: string | null
+          deleted?: boolean | null
+          edited?: boolean | null
+          id: string
+          read?: boolean | null
+          reply_to_id?: string | null
+          sender_id?: string | null
+          text?: string | null
+          timestamp?: string | null
+          type?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          conversation_id?: string | null
+          deleted?: boolean | null
+          edited?: boolean | null
+          id?: string
+          read?: boolean | null
+          reply_to_id?: string | null
+          sender_id?: string | null
+          text?: string | null
+          timestamp?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reactions: {
+        Row: {
+          custom_emoji_id: string | null
+          emoji: string
+          id: number
+          is_custom: boolean | null
+          message_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          custom_emoji_id?: string | null
+          emoji: string
+          id?: number
+          is_custom?: boolean | null
+          message_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          custom_emoji_id?: string | null
+          emoji?: string
+          id?: number
+          is_custom?: boolean | null
+          message_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          avatar: string | null
+          id: string
+          last_seen: string | null
+          name: string
+          password: string
+          status: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          id: string
+          last_seen?: string | null
+          name: string
+          password: string
+          status?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          id?: string
+          last_seen?: string | null
+          name?: string
+          password?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
