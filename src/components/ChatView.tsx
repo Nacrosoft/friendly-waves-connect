@@ -14,6 +14,7 @@ interface ChatViewProps {
 
 export function ChatView({ conversation }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagingContext = useMessaging();
   const { currentUser } = useAuth();
@@ -32,7 +33,8 @@ export function ChatView({ conversation }: ChatViewProps) {
   }, [conversation, messagingContext.conversations]);
 
   const sendMessage = (text: string) => {
-    messagingContext.sendMessage(text);
+    messagingContext.sendMessage(text, replyToMessage?.id);
+    setReplyToMessage(null);
     scrollToBottom();
   };
 
@@ -53,11 +55,13 @@ export function ChatView({ conversation }: ChatViewProps) {
           timestamp: new Date(),
           read: false,
           type: type,
-          attachmentUrl: base64data
+          attachmentUrl: base64data,
+          replyToId: replyToMessage?.id // Include reply info if replying
         };
         
         // Custom function to add attachment message
         messagingContext.sendAttachmentMessage(newMessage);
+        setReplyToMessage(null);
         scrollToBottom();
       };
     } catch (error) {
@@ -74,17 +78,56 @@ export function ChatView({ conversation }: ChatViewProps) {
     messagingContext.addReaction(messageId, emoji, isCustom, customEmojiId);
   };
 
+  const handleEditMessage = (messageId: string, newText: string) => {
+    messagingContext.editMessage(messageId, newText);
+  };
+
+  const handleReplyMessage = (messageId: string) => {
+    const messageToReply = messages.find(msg => msg.id === messageId);
+    if (messageToReply) {
+      setReplyToMessage(messageToReply);
+      // Focus on input after setting reply
+      setTimeout(() => {
+        const inputElement = document.querySelector('input[placeholder="Type a message..."]') as HTMLInputElement;
+        if (inputElement) {
+          inputElement.focus();
+        }
+      }, 100);
+    }
+  };
+
+  const cancelReply = () => {
+    setReplyToMessage(null);
+  };
+
   const renderMessages = () => {
     return messages.map((message) => {
       const isSent = message.senderId === currentUser?.id;
       
+      // If this message is a reply, find the original message
+      const replyToMessage = message.replyToId ? messages.find(msg => msg.id === message.replyToId) : null;
+      
       return (
-        <MessageBubble
-          key={message.id}
-          message={message}
-          isSent={isSent}
-          onReaction={(emoji, isCustom, customEmojiId) => handleReaction(message.id, emoji, isCustom, customEmojiId)}
-        />
+        <div key={message.id} className="flex flex-col">
+          {/* Show reply information if this is a reply */}
+          {replyToMessage && (
+            <div 
+              className={`text-xs text-muted-foreground mb-1 ${
+                isSent ? 'text-right' : 'text-left'
+              }`}
+            >
+              Replying to: <span className="italic">{replyToMessage.text || 'Attachment'}</span>
+            </div>
+          )}
+          
+          <MessageBubble
+            message={message}
+            isSent={isSent}
+            onReaction={(emoji, isCustom, customEmojiId) => handleReaction(message.id, emoji, isCustom, customEmojiId)}
+            onEdit={isSent ? handleEditMessage : undefined}
+            onReply={() => handleReplyMessage(message.id)}
+          />
+        </div>
       );
     });
   };
@@ -120,6 +163,8 @@ export function ChatView({ conversation }: ChatViewProps) {
       <MessageInput 
         onSendMessage={sendMessage} 
         onSendAttachment={sendAttachment}
+        replyToMessage={replyToMessage}
+        onCancelReply={cancelReply}
       />
     </div>
   );

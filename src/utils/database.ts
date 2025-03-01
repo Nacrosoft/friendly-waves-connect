@@ -1,397 +1,244 @@
-import { Conversation, Message, User, Reaction, CustomEmoji } from "@/types/chat";
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 
-// Database configuration
-const DB_NAME = 'messengerDB';
-const DB_VERSION = 2; // Upgrading version for new store
-const CONVERSATIONS_STORE = 'conversations';
-const USERS_STORE = 'users';
-const CUSTOM_EMOJIS_STORE = 'customEmojis';
+interface ChatDatabase extends DBSchema {
+  users: {
+    key: string;
+    value: User;
+  };
+  conversations: {
+    key: string;
+    value: Conversation;
+    indexes: { 'lastMessageTime': Date };
+  };
+  customEmojis: {
+    key: string;
+    value: CustomEmoji;
+    indexes: { 'userId': string };
+  };
+}
 
-// Initialize the database
-export const initDatabase = (): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
-    request.onerror = (event) => {
-      console.error('Database error:', event);
-      reject(false);
-    };
-    
-    request.onsuccess = () => {
-      console.log('Database opened successfully');
-      resolve(true);
-    };
-    
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      
-      // Create object stores
-      if (!db.objectStoreNames.contains(CONVERSATIONS_STORE)) {
-        const conversationsStore = db.createObjectStore(CONVERSATIONS_STORE, { keyPath: 'id' });
-        conversationsStore.createIndex('participantId', 'participants.id', { multiEntry: true });
-      }
-      
-      if (!db.objectStoreNames.contains(USERS_STORE)) {
-        const usersStore = db.createObjectStore(USERS_STORE, { keyPath: 'id' });
-        usersStore.createIndex('name', 'name', { unique: false });
-      }
-      
-      if (!db.objectStoreNames.contains(CUSTOM_EMOJIS_STORE)) {
-        const customEmojisStore = db.createObjectStore(CUSTOM_EMOJIS_STORE, { keyPath: 'id' });
-        customEmojisStore.createIndex('userId', 'userId', { unique: false });
-      }
-    };
-  });
-};
+let dbPromise: Promise<IDBPDatabase<ChatDatabase>> | null = null;
 
-// Get database connection
-const getDB = (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
-    request.onerror = (event) => {
-      console.error('Error opening database:', event);
-      reject(event);
-    };
-    
-    request.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      resolve(db);
-    };
-  });
-};
-
-// User operations
-export const saveUser = async (user: User): Promise<User> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([USERS_STORE], 'readwrite');
-    const store = transaction.objectStore(USERS_STORE);
-    const request = store.put(user);
-    
-    request.onsuccess = () => {
-      resolve(user);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error saving user:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
-};
-
-export const getUser = async (userId: string): Promise<User | null> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([USERS_STORE], 'readonly');
-    const store = transaction.objectStore(USERS_STORE);
-    const request = store.get(userId);
-    
-    request.onsuccess = () => {
-      resolve(request.result || null);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error getting user:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
-};
-
-export const getAllUsers = async (): Promise<User[]> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([USERS_STORE], 'readonly');
-    const store = transaction.objectStore(USERS_STORE);
-    const request = store.getAll();
-    
-    request.onsuccess = () => {
-      resolve(request.result || []);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error getting all users:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
-};
-
-// Custom Emoji operations
-export const saveCustomEmoji = async (emoji: CustomEmoji): Promise<CustomEmoji> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([CUSTOM_EMOJIS_STORE, USERS_STORE], 'readwrite');
-    const emojiStore = transaction.objectStore(CUSTOM_EMOJIS_STORE);
-    const userStore = transaction.objectStore(USERS_STORE);
-    
-    // Save emoji
-    const emojiRequest = emojiStore.put(emoji);
-    
-    emojiRequest.onsuccess = async () => {
-      // Update user with new emoji reference
-      const userRequest = userStore.get(emoji.userId);
-      
-      userRequest.onsuccess = () => {
-        const user = userRequest.result;
-        if (user) {
-          if (!user.customEmojis) {
-            user.customEmojis = [];
-          }
-          
-          // Check if emoji already exists for user
-          const existingIndex = user.customEmojis.findIndex(e => e.id === emoji.id);
-          if (existingIndex >= 0) {
-            user.customEmojis[existingIndex] = emoji;
-          } else {
-            user.customEmojis.push(emoji);
-          }
-          
-          userStore.put(user);
+const openDBInstance = async (): Promise<IDBPDatabase<ChatDatabase>> => {
+  if (!dbPromise) {
+    dbPromise = openDB<ChatDatabase>('chat-app-db', 3, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains('users')) {
+          db.createObjectStore('users', { keyPath: 'id' });
         }
-        
-        resolve(emoji);
-      };
-      
-      userRequest.onerror = (event) => {
-        console.error('Error updating user with emoji:', event);
-        reject(event);
-      };
-    };
-    
-    emojiRequest.onerror = (event) => {
-      console.error('Error saving emoji:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
-};
-
-export const getCustomEmojisForUser = async (userId: string): Promise<CustomEmoji[]> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([CUSTOM_EMOJIS_STORE], 'readonly');
-    const store = transaction.objectStore(CUSTOM_EMOJIS_STORE);
-    const index = store.index('userId');
-    const request = index.getAll(userId);
-    
-    request.onsuccess = () => {
-      resolve(request.result || []);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error getting emojis for user:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
-};
-
-export const deleteCustomEmoji = async (emojiId: string, userId: string): Promise<boolean> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([CUSTOM_EMOJIS_STORE, USERS_STORE], 'readwrite');
-    const emojiStore = transaction.objectStore(CUSTOM_EMOJIS_STORE);
-    const userStore = transaction.objectStore(USERS_STORE);
-    
-    // Delete emoji
-    const emojiRequest = emojiStore.delete(emojiId);
-    
-    emojiRequest.onsuccess = async () => {
-      // Update user to remove emoji reference
-      const userRequest = userStore.get(userId);
-      
-      userRequest.onsuccess = () => {
-        const user = userRequest.result;
-        if (user && user.customEmojis) {
-          user.customEmojis = user.customEmojis.filter(e => e.id !== emojiId);
-          userStore.put(user);
+        if (!db.objectStoreNames.contains('conversations')) {
+          const conversationStore = db.createObjectStore('conversations', { keyPath: 'id' });
+          conversationStore.createIndex('lastMessageTime', 'lastMessageTime');
         }
-        
-        resolve(true);
-      };
-      
-      userRequest.onerror = (event) => {
-        console.error('Error updating user after emoji deletion:', event);
-        reject(event);
-      };
-    };
-    
-    emojiRequest.onerror = (event) => {
-      console.error('Error deleting emoji:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+        if (!db.objectStoreNames.contains('customEmojis')) {
+          const customEmojiStore = db.createObjectStore('customEmojis', { keyPath: 'id' });
+          customEmojiStore.createIndex('userId', 'userId');
+        }
+      },
+    });
+  }
+  return dbPromise;
 };
 
-// Conversation operations
+export const initDatabase = async (): Promise<boolean> => {
+  try {
+    await openDBInstance();
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    return false;
+  }
+};
+
+export const saveUser = async (user: User): Promise<void> => {
+  const db = await openDBInstance();
+  const tx = db.transaction('users', 'readwrite');
+  const store = tx.objectStore('users');
+  await store.put(user);
+  await tx.done;
+};
+
+export const getUser = async (id: string): Promise<User | undefined> => {
+  const db = await openDBInstance();
+  return db.get('users', id);
+};
+
 export const saveConversation = async (conversation: Conversation): Promise<Conversation> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([CONVERSATIONS_STORE], 'readwrite');
-    const store = transaction.objectStore(CONVERSATIONS_STORE);
-    const request = store.put(conversation);
-    
-    request.onsuccess = () => {
-      resolve(conversation);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error saving conversation:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+  const db = await openDBInstance();
+  const tx = db.transaction('conversations', 'readwrite');
+  const store = tx.objectStore('conversations');
+  await store.put(conversation);
+  await tx.done;
+  return conversation;
 };
 
-export const getConversation = async (conversationId: string): Promise<Conversation | null> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([CONVERSATIONS_STORE], 'readonly');
-    const store = transaction.objectStore(CONVERSATIONS_STORE);
-    const request = store.get(conversationId);
-    
-    request.onsuccess = () => {
-      resolve(request.result || null);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error getting conversation:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+export const getConversation = async (id: string): Promise<Conversation | undefined> => {
+  const db = await openDBInstance();
+  return db.get('conversations', id);
 };
 
 export const getAllConversations = async (): Promise<Conversation[]> => {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([CONVERSATIONS_STORE], 'readonly');
-    const store = transaction.objectStore(CONVERSATIONS_STORE);
-    const request = store.getAll();
-    
-    request.onsuccess = () => {
-      resolve(request.result || []);
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error getting all conversations:', event);
-      reject(event);
-    };
-    
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+  const db = await openDBInstance();
+  return db.getAll('conversations');
 };
 
 export const addMessageToConversation = async (
-  conversationId: string, 
+  conversationId: string,
   message: Message
-): Promise<Conversation | null> => {
-  // Get current conversation
-  const conversation = await getConversation(conversationId);
-  if (!conversation) return null;
-  
-  // Add message
-  conversation.messages.push(message);
-  
-  // Update last message data
-  conversation.lastMessageText = message.text;
-  conversation.lastMessageTime = message.timestamp;
-  
-  // If the message is from someone else, increment unread count
-  if (message.senderId !== conversation.participants.find(p => p.status === 'online')?.id) {
-    conversation.unreadCount++;
+): Promise<Conversation | undefined> => {
+  const db = await openDBInstance();
+  const tx = db.transaction('conversations', 'readwrite');
+  const store = tx.objectStore('conversations');
+
+  const conversation = await store.get(conversationId);
+  if (!conversation) {
+    console.error(`Conversation with id ${conversationId} not found`);
+    return;
   }
-  
-  // Save updated conversation
-  return saveConversation(conversation);
+
+  const updatedConversation: Conversation = {
+    ...conversation,
+    messages: [...conversation.messages, message],
+    lastMessageText: message.text,
+    lastMessageTime: message.timestamp,
+  };
+
+  await store.put(updatedConversation);
+  await tx.done;
+  return updatedConversation;
 };
 
-export const markConversationAsRead = async (conversationId: string): Promise<Conversation | null> => {
-  const conversation = await getConversation(conversationId);
-  if (!conversation) return null;
-  
-  conversation.unreadCount = 0;
-  conversation.messages = conversation.messages.map(message => ({
-    ...message,
-    read: true
-  }));
-  
-  return saveConversation(conversation);
+export const markConversationAsRead = async (conversationId: string): Promise<Conversation | undefined> => {
+  const db = await openDBInstance();
+  const tx = db.transaction('conversations', 'readwrite');
+  const store = tx.objectStore('conversations');
+
+  const conversation = await store.get(conversationId);
+  if (!conversation) {
+    console.error(`Conversation with id ${conversationId} not found`);
+    return;
+  }
+
+  const updatedConversation: Conversation = {
+    ...conversation,
+    unreadCount: 0,
+  };
+
+  await store.put(updatedConversation);
+  await tx.done;
+  return updatedConversation;
 };
 
 export const addReactionToMessage = async (
-  conversationId: string, 
+  conversationId: string,
   messageId: string,
   reaction: Reaction
 ): Promise<Conversation | null> => {
-  const conversation = await getConversation(conversationId);
-  if (!conversation) return null;
-  
-  conversation.messages = conversation.messages.map(message => {
-    if (message.id === messageId) {
-      const currentReactions = message.reactions || [];
-      // Avoid duplicate reactions from the same user
-      const filteredReactions = currentReactions.filter(r => 
-        !(r.userId === reaction.userId && 
-          ((r.isCustom && r.customEmojiId === reaction.customEmojiId) || 
-           (!r.isCustom && r.emoji === reaction.emoji)))
-      );
-      return {
-        ...message,
-        reactions: [...filteredReactions, reaction]
-      };
+  try {
+    const db = await openDBInstance();
+    const tx = db.transaction('conversations', 'readwrite');
+    const store = tx.objectStore('conversations');
+
+    const conversation = await store.get(conversationId);
+    if (!conversation) {
+      console.error(`Conversation with id ${conversationId} not found`);
+      return null;
     }
-    return message;
-  });
-  
-  return saveConversation(conversation);
+
+    const updatedMessages = conversation.messages.map(message => {
+      if (message.id === messageId) {
+        const existingReactions = message.reactions || [];
+        return {
+          ...message,
+          reactions: [...existingReactions, reaction],
+        };
+      }
+      return message;
+    });
+
+    const updatedConversation: Conversation = {
+      ...conversation,
+      messages: updatedMessages,
+    };
+
+    await store.put(updatedConversation);
+    await tx.done;
+    return updatedConversation;
+  } catch (error) {
+    console.error('Error adding reaction to message:', error);
+    return null;
+  }
 };
 
-// Seed database with initial data
-export const seedDatabase = async (users: User[], conversations: Conversation[]): Promise<void> => {
+export const saveCustomEmoji = async (emoji: CustomEmoji): Promise<CustomEmoji> => {
+  const db = await openDBInstance();
+  const tx = db.transaction('customEmojis', 'readwrite');
+  const store = tx.objectStore('customEmojis');
+  await store.put(emoji);
+  await tx.done;
+  return emoji;
+};
+
+export const getCustomEmojisForUser = async (userId: string): Promise<CustomEmoji[]> => {
+  const db = await openDBInstance();
+  const index = db.transaction('customEmojis').store.index('userId');
+  return index.getAll(userId);
+};
+
+export const deleteCustomEmoji = async (emojiId: string, userId: string): Promise<boolean> => {
   try {
-    // Save all users
-    for (const user of users) {
-      await saveUser(user);
-    }
-    
-    // Save all conversations
-    for (const conversation of conversations) {
-      await saveConversation(conversation);
-    }
-    
-    console.log('Database seeded successfully');
+    const db = await openDBInstance();
+    const tx = db.transaction('customEmojis', 'readwrite');
+    const store = tx.objectStore('customEmojis');
+    await store.delete(emojiId);
+    await tx.done;
+    return true;
   } catch (error) {
-    console.error('Error seeding database:', error);
+    console.error('Error deleting custom emoji:', error);
+    return false;
+  }
+};
+
+// Add this function to the database utility functions
+export const editMessageInConversation = async (
+  conversationId: string,
+  messageId: string,
+  newText: string
+): Promise<Conversation | null> => {
+  try {
+    const conversation = await getConversation(conversationId);
+    
+    if (!conversation) {
+      return null;
+    }
+    
+    const updatedMessages = conversation.messages.map(message => {
+      if (message.id === messageId) {
+        return {
+          ...message,
+          text: newText,
+          edited: true // Mark as edited
+        };
+      }
+      return message;
+    });
+    
+    const updatedConversation = {
+      ...conversation,
+      messages: updatedMessages
+    };
+    
+    // Update in database
+    const db = await openDBInstance();
+    const tx = db.transaction('conversations', 'readwrite');
+    const store = tx.objectStore('conversations');
+    await store.put(updatedConversation);
+    await tx.done;
+    
+    return updatedConversation;
+  } catch (error) {
+    console.error('Error editing message in conversation:', error);
+    return null;
   }
 };

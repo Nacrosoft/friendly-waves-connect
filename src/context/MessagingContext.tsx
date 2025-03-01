@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 import { 
@@ -11,7 +12,8 @@ import {
   getUser,
   saveCustomEmoji,
   getCustomEmojisForUser,
-  deleteCustomEmoji
+  deleteCustomEmoji,
+  editMessageInConversation
 } from '@/utils/database';
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
@@ -22,12 +24,13 @@ interface MessagingContextType {
   selectedConversation: Conversation | null;
   isLoading: boolean;
   selectConversation: (conversationId: string) => void;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, replyToId?: string) => Promise<void>;
   sendAttachmentMessage: (message: Message) => Promise<void>;
   addReaction: (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => Promise<void>;
   startNewConversation: (userId: string) => Promise<void>;
   saveCustomEmoji: (emoji: CustomEmoji) => Promise<CustomEmoji>;
   deleteUserEmoji: (emojiId: string) => Promise<boolean>;
+  editMessage: (messageId: string, newText: string) => Promise<void>;
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -120,7 +123,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, replyToId?: string) => {
     if (!selectedConversation || !currentUser) return;
     
     const newMessage: Message = {
@@ -129,7 +132,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       text,
       timestamp: new Date(),
       read: false,
-      type: 'text'
+      type: 'text',
+      replyToId // Add replyToId if we're replying to a message
     };
     
     try {
@@ -180,6 +184,42 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       toast({
         title: 'Error',
         description: 'Could not send the attachment.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const editMessage = async (messageId: string, newText: string) => {
+    if (!selectedConversation || !currentUser) return;
+    
+    try {
+      // Implementation will depend on how your database utility functions work
+      // We'll assume there's an editMessageInConversation function
+      const updatedConversation = await editMessageInConversation(
+        selectedConversation.id,
+        messageId,
+        newText
+      );
+      
+      if (updatedConversation) {
+        setSelectedConversation(updatedConversation);
+        
+        setConversations(prevConversations => 
+          prevConversations.map(conv => 
+            conv.id === selectedConversation.id ? updatedConversation : conv
+          )
+        );
+        
+        toast({
+          title: 'Message edited',
+          description: 'Your message was updated successfully.',
+        });
+      }
+    } catch (error) {
+      console.error('Error editing message:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not edit the message.',
         variant: 'destructive'
       });
     }
@@ -343,7 +383,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addReaction,
         startNewConversation,
         saveCustomEmoji: saveUserEmoji,
-        deleteUserEmoji
+        deleteUserEmoji,
+        editMessage
       }}
     >
       {children}

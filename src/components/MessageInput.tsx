@@ -10,18 +10,25 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { CustomEmoji } from '@/types/chat';
+import { CustomEmoji, Message } from '@/types/chat';
 import { useAuth } from '@/context/AuthContext';
 import CustomEmojiCreator from './CustomEmojiCreator';
 
 interface MessageInputProps {
   onSendMessage: (text: string) => void;
   onSendAttachment?: (file: File, type: 'image' | 'video') => void;
+  replyToMessage?: Message | null;
+  onCancelReply?: () => void;
 }
 
 const emojis = ['😀', '😂', '❤️', '👍', '🎉', '🔥', '😊', '🙏'];
 
-export function MessageInput({ onSendMessage, onSendAttachment }: MessageInputProps) {
+export function MessageInput({ 
+  onSendMessage, 
+  onSendAttachment, 
+  replyToMessage,
+  onCancelReply 
+}: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
@@ -111,10 +118,37 @@ export function MessageInput({ onSendMessage, onSendAttachment }: MessageInputPr
       description: `Custom emoji "${emoji.name}" is now available`,
     });
   };
+
+  const handleCancelReply = () => {
+    if (onCancelReply) {
+      onCancelReply();
+    }
+  };
   
   return (
     <>
       <form onSubmit={handleSubmit} className="p-4 bg-card/50 backdrop-blur-md border-t border-border glass-effect">
+        {/* Reply indicator */}
+        {replyToMessage && (
+          <div className="mb-2 bg-secondary/30 p-2 rounded-md border border-border flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-medium">Replying to message</span>
+              <span className="text-sm text-muted-foreground truncate">
+                {replyToMessage.text || (replyToMessage.type === 'image' ? 'Image' : 'Video')}
+              </span>
+            </div>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleCancelReply}
+              className="h-6 w-6"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         {attachment && attachmentPreview && (
           <div className="mb-2 relative">
             <div className="flex items-center gap-2 p-2 bg-background rounded-md border border-border">

@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Message, CustomEmoji } from '@/types/chat';
 import { format } from 'date-fns';
-import { Smile } from 'lucide-react';
+import { Smile, MoreVertical, Edit, Reply, Check, X } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -10,18 +10,32 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface MessageBubbleProps {
   message: Message;
   isSent: boolean;
   onReaction?: (emoji: string, isCustom?: boolean, customEmojiId?: string) => void;
+  onEdit?: (messageId: string, newText: string) => void;
+  onReply?: (messageId: string) => void;
 }
 
 const emojis = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
-export function MessageBubble({ message, isSent, onReaction }: MessageBubbleProps) {
+export function MessageBubble({ 
+  message, 
+  isSent, 
+  onReaction, 
+  onEdit,
+  onReply 
+}: MessageBubbleProps) {
   const [showReactions, setShowReactions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(message.text);
   const { currentUser } = useAuth();
+  const editInputRef = useRef<HTMLInputElement>(null);
   
   // Convert string date to Date object if needed
   const timestamp = message.timestamp instanceof Date 
@@ -39,8 +53,66 @@ export function MessageBubble({ message, isSent, onReaction }: MessageBubbleProp
       onReaction('', true, emoji.id);
     }
   };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setTimeout(() => {
+      editInputRef.current?.focus();
+    }, 100);
+  };
+
+  const handleSaveEdit = () => {
+    if (onEdit && editText.trim() !== '') {
+      onEdit(message.id, editText);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditText(message.text);
+    setIsEditing(false);
+  };
+
+  const handleReply = () => {
+    if (onReply) {
+      onReply(message.id);
+    }
+  };
   
   const renderMessageContent = () => {
+    if (isEditing && message.type === 'text') {
+      return (
+        <div className="flex flex-col w-full space-y-2">
+          <Input
+            ref={editInputRef}
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            className="w-full"
+          />
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleCancelEdit}
+              className="h-7 px-2"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={handleSaveEdit}
+              className="h-7 px-2"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Save
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     if (message.type === 'text') {
       return message.text;
     } else if (message.type === 'image' && message.attachmentUrl) {
@@ -95,6 +167,9 @@ export function MessageBubble({ message, isSent, onReaction }: MessageBubbleProp
     acc[emoji.id] = emoji;
     return acc;
   }, {} as Record<string, CustomEmoji>) || {};
+
+  // Check if this message is sent by the current user
+  const canEdit = isSent && message.type === 'text';
   
   return (
     <div 
@@ -112,47 +187,88 @@ export function MessageBubble({ message, isSent, onReaction }: MessageBubbleProp
         onMouseLeave={() => setShowReactions(false)}
       >
         {renderMessageContent()}
-        
-        {showReactions && onReaction && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button 
-                className={`absolute -bottom-8 ${isSent ? 'left-0' : 'right-0'} bg-card p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity`}
-              >
-                <Smile className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={isSent ? 'start' : 'end'} className="flex flex-wrap p-1">
-              {emojis.map(emoji => (
-                <DropdownMenuItem 
-                  key={emoji} 
-                  onClick={() => handleEmojiClick(emoji)} 
-                  className="cursor-pointer"
-                >
-                  {emoji}
-                </DropdownMenuItem>
-              ))}
-              
-              {currentUser?.customEmojis && currentUser.customEmojis.length > 0 && (
-                <>
-                  <div className="w-full h-px bg-border my-1" />
-                  {currentUser.customEmojis.map(emoji => (
-                    <DropdownMenuItem 
-                      key={emoji.id} 
-                      onClick={() => handleCustomEmojiClick(emoji)} 
-                      className="cursor-pointer p-1 h-8 w-8"
-                    >
-                      {emoji.type === 'image' ? (
-                        <img src={emoji.url} alt={emoji.name} className="w-6 h-6 object-contain" />
-                      ) : (
-                        <video src={emoji.url} className="w-6 h-6 object-contain" autoPlay muted loop />
-                      )}
+
+        {/* Message menu (three dots) */}
+        {!isEditing && (
+          <div className={`absolute ${isSent ? 'left-0' : 'right-0'} -top-7 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1`}>
+            <TooltipProvider>
+              {/* Message actions dropdown */}
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full">
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Actions</p>
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align={isSent ? "start" : "end"}>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={handleEdit} className="gap-2">
+                      <Edit className="h-4 w-4" />
+                      Edit
                     </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  )}
+                  <DropdownMenuItem onClick={handleReply} className="gap-2">
+                    <Reply className="h-4 w-4" />
+                    Reply
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TooltipProvider>
+
+            {/* Reaction button */}
+            {onReaction && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full">
+                        <Smile className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align={isSent ? "start" : "end"} className="flex flex-wrap p-1">
+                      {emojis.map(emoji => (
+                        <DropdownMenuItem 
+                          key={emoji} 
+                          onClick={() => handleEmojiClick(emoji)} 
+                          className="cursor-pointer"
+                        >
+                          {emoji}
+                        </DropdownMenuItem>
+                      ))}
+                      
+                      {currentUser?.customEmojis && currentUser.customEmojis.length > 0 && (
+                        <>
+                          <div className="w-full h-px bg-border my-1" />
+                          {currentUser.customEmojis.map(emoji => (
+                            <DropdownMenuItem 
+                              key={emoji.id} 
+                              onClick={() => handleCustomEmojiClick(emoji)} 
+                              className="cursor-pointer p-1 h-8 w-8"
+                            >
+                              {emoji.type === 'image' ? (
+                                <img src={emoji.url} alt={emoji.name} className="w-6 h-6 object-contain" />
+                              ) : (
+                                <video src={emoji.url} className="w-6 h-6 object-contain" autoPlay muted loop />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>React</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         )}
       </div>
       
