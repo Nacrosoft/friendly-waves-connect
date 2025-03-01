@@ -21,15 +21,22 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
   useEffect(() => {
     const sorted = [...conversations].sort((a, b) => {
       // Ensure we're comparing valid date objects
-      const dateA = new Date(b.lastMessageTime);
-      const dateB = new Date(a.lastMessageTime);
-      return dateA.getTime() - dateB.getTime();
+      const dateA = a.lastMessageTime instanceof Date ? a.lastMessageTime : new Date(a.lastMessageTime);
+      const dateB = b.lastMessageTime instanceof Date ? b.lastMessageTime : new Date(b.lastMessageTime);
+      
+      // Sort in descending order (newest first)
+      return dateB.getTime() - dateA.getTime();
     });
+    
     setSortedConversations(sorted);
     
     // Debug
     console.log("Conversations updated:", conversations);
     console.log("Sorted conversations:", sorted);
+    conversations.forEach(conv => {
+      console.log(`Conversation ${conv.id} last message time:`, conv.lastMessageTime, 
+        "converted to date:", new Date(conv.lastMessageTime));
+    });
   }, [conversations]);
   
   const handleUserClick = (event: React.MouseEvent, userId: string) => {
