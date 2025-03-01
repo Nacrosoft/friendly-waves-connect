@@ -248,23 +248,27 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     if (!isAuthenticated || !currentUser || !isDbInitialized) return;
     
-    setIsLoading(true);
-    try {
-      const allConversations = await getAllConversations();
-      const userConversations = allConversations.filter(conv => 
-        conv.participants.some(p => p.id === currentUser.id)
-      );
-      setConversations(userConversations);
-    } catch (error) {
-      console.error('Error loading conversations:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not load your conversations.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    const loadConversations = async () => {
+      setIsLoading(true);
+      try {
+        const allConversations = await getAllConversations();
+        const userConversations = allConversations.filter(conv => 
+          conv.participants.some(p => p.id === currentUser.id)
+        );
+        setConversations(userConversations);
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load your conversations.',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadConversations();
   }, [currentUser, isAuthenticated, isDbInitialized, toast]);
 
   const selectConversation = async (conversationId: string) => {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -9,7 +10,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { CallModal } from '@/components/CallModal';
 import { useMessaging } from '@/context/MessagingContext';
 
-function App() {
+function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const { incomingCall, activeCall } = useMessaging();
   
@@ -44,6 +45,16 @@ function App() {
       
       <Toaster />
     </>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <MessagingProvider>
+        <AppContent />
+      </MessagingProvider>
+    </AuthProvider>
   );
 }
 
