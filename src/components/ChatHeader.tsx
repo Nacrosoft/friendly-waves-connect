@@ -3,7 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@/types/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone, Video, MoreHorizontal } from 'lucide-react';
+import { Phone, Video, MoreHorizontal, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ChatHeaderProps {
@@ -17,6 +17,8 @@ export function ChatHeader({ user }: ChatHeaderProps) {
     navigate(`/user/${user.id}`);
   };
   
+  const isVerifiedUser = user.id === 'user-meetefy';
+  
   return (
     <div className="border-b border-border p-4 flex items-center justify-between bg-card/50 backdrop-blur-md glass-effect z-10 animate-fade-in">
       <div 
@@ -28,7 +30,12 @@ export function ChatHeader({ user }: ChatHeaderProps) {
           <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
-          <h2 className="font-medium">{user.name}</h2>
+          <div className="flex items-center gap-1">
+            <h2 className="font-medium">{user.name}</h2>
+            {isVerifiedUser && (
+              <BadgeCheck className="h-4 w-4 text-blue-500" />
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <span 
               className={`h-2 w-2 rounded-full ${
