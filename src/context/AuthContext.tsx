@@ -2,18 +2,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
+import { saveUser, getUser, getAllUsers, updateUser as updateUserInDb } from '@/utils/database';
 
 interface AuthContextType {
   currentUser: User | null;
   allUsers: User[] | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  error: string | null; // Add error property
+  error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   register: (name: string, password: string, avatar?: string) => Promise<boolean>;
   logout: () => void;
   updateUserStatus: (status: 'online' | 'offline' | 'away') => Promise<void>;
-  updateUser: (user: User) => Promise<void>; // Changed return type to void
+  updateUser: (user: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,21 +23,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // Add error state
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadUsers = () => {
+    const loadUsers = async () => {
       setIsLoading(true);
       try {
-        const usersStr = localStorage.getItem('users');
-        const users: User[] = usersStr ? JSON.parse(usersStr) : [];
+        const users = await getAllUsers();
         setAllUsers(users);
         
         // Check for a logged-in user
         const loggedInUserId = localStorage.getItem('loggedInUser');
         if (loggedInUserId) {
-          const user = users.find(u => u.id === loggedInUserId);
+          const user = await getUser(loggedInUserId);
           if (user) {
             setCurrentUser(user);
           }
@@ -60,14 +60,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
-      const usersStr = localStorage.getItem('users');
-      const users: User[] = usersStr ? JSON.parse(usersStr) : [];
+      const users = await getAllUsers();
       
       const user = users.find(u => u.name === username && u.password === password);
       
       if (user) {
-        setCurrentUser(user);
+        // Update the user's status to online
+        const updatedUser = {
+          ...user,
+          status: 'online' as const,
+          lastSeen: new Date()
+        };
+        
+        await updateUserInDb(updatedUser);
+        setCurrentUser(updatedUser);
         localStorage.setItem('loggedInUser', user.id);
+        
         toast({
           title: 'Login Successful',
           description: `Welcome back, ${user.name}!`,
@@ -102,8 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
-      const usersStr = localStorage.getItem('users');
-      let users: User[] = usersStr ? JSON.parse(usersStr) : [];
+      const users = await getAllUsers();
       
       if (users.some(u => u.name === name)) {
         const errorMessage = 'Username already exists.';
@@ -125,9 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastSeen: new Date(),
       };
       
-      users = [...users, newUser];
-      localStorage.setItem('users', JSON.stringify(users));
-      setAllUsers(users);
+      await saveUser(newUser);
+      
+      // Refresh the users list
+      const updatedUsers = await getAllUsers();
+      setAllUsers(updatedUsers);
       
       setCurrentUser(newUser);
       localStorage.setItem('loggedInUser', newUser.id);
@@ -152,9 +161,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (currentUser) {
+      // Update user status to offline before logging out
+      const updatedUser = {
+        ...currentUser,
+        status: 'offline' as const,
+        lastSeen: new Date()
+      };
+      
+      try {
+        await updateUserInDb(updatedUser);
+      } catch (error) {
+        console.error('Error updating user status during logout:', error);
+      }
+    }
+    
     setCurrentUser(null);
     localStorage.removeItem('loggedInUser');
+    
     toast({
       title: 'Logged out',
       description: 'You have been successfully logged out.',
@@ -168,15 +193,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const updatedUser = { ...currentUser, status, lastSeen: new Date() };
       
-      // Update user in local storage
-      const usersStr = localStorage.getItem('users');
-      let users: User[] = usersStr ? JSON.parse(usersStr) : [];
-      
-      users = users.map(u => u.id === currentUser.id ? updatedUser : u);
-      localStorage.setItem('users', JSON.stringify(users));
+      // Update user in database
+      await updateUserInDb(updatedUser);
       
       setCurrentUser(updatedUser);
-      setAllUsers(users);
+      
+      // Refresh the users list
+      const updatedUsers = await getAllUsers();
+      setAllUsers(updatedUsers);
       
       toast({
         title: 'Status Updated',
@@ -194,24 +218,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Add the updateUser method to the context value
   const updateUser = async (user: User): Promise<void> => {
     try {
       // Update user in the database
-      await updateUserInDatabase(user);
+      await updateUserInDb(user);
       
       // Update the current user if it's the same user
       if (currentUser && currentUser.id === user.id) {
         setCurrentUser(user);
       }
       
-      // Update the user in the allUsers array
-      if (allUsers) {
-        const updatedAllUsers = allUsers.map(u => 
-          u.id === user.id ? user : u
-        );
-        setAllUsers(updatedAllUsers);
-      }
+      // Refresh the users list
+      const updatedUsers = await getAllUsers();
+      setAllUsers(updatedUsers);
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;
@@ -244,24 +263,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within a AuthProvider');
   }
   return context;
-};
-
-// Helper function to update a user in the database
-const updateUserInDatabase = async (user: User): Promise<User> => {
-  try {
-    // Get all current users
-    const usersStr = localStorage.getItem('users');
-    let users: User[] = usersStr ? JSON.parse(usersStr) : [];
-    
-    // Update the user
-    users = users.map(u => u.id === user.id ? user : u);
-    
-    // Save back to localStorage
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    return user;
-  } catch (error) {
-    console.error('Failed to update user in database:', error);
-    throw error;
-  }
 };
