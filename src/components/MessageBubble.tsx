@@ -4,7 +4,7 @@ import { Message } from '@/types/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Smile, Reply, Pencil, Play, Pause } from 'lucide-react';
+import { MoreHorizontal, Smile, Reply, Pencil, Play, Pause, Trash } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
@@ -16,9 +16,10 @@ interface MessageBubbleProps {
   onReaction: (emoji: string, isCustom?: boolean, customEmojiId?: string) => void;
   onEdit?: (messageId: string, newText: string) => void;
   onReply: () => void;
+  onDelete?: (messageId: string) => void;
 }
 
-export function MessageBubble({ message, isSent, onReaction, onEdit, onReply }: MessageBubbleProps) {
+export function MessageBubble({ message, isSent, onReaction, onEdit, onReply, onDelete }: MessageBubbleProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.text);
   const [showReactions, setShowReactions] = useState(false);
@@ -133,6 +134,35 @@ export function MessageBubble({ message, isSent, onReaction, onEdit, onReply }: 
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+  
+  // Check if message is deleted
+  if (message.deleted) {
+    return (
+      <div className={`flex mb-4 ${isSent ? 'justify-end' : 'justify-start'}`}>
+        {!isSent && sender && (
+          <Avatar className="h-8 w-8 mr-2">
+            <AvatarImage src={sender.avatar} alt={sender.name} />
+            <AvatarFallback>{sender.name.substring(0, 2)}</AvatarFallback>
+          </Avatar>
+        )}
+        
+        <div className={`max-w-[75%] ${isSent ? 'order-1' : 'order-2'}`}>
+          <div 
+            className={`rounded-lg px-4 py-2 ${
+              isSent 
+                ? 'bg-primary/30 text-primary-foreground/70' 
+                : 'bg-card/70 border border-border text-muted-foreground'
+            }`}
+          >
+            <div className="italic text-sm">This message was deleted</div>
+            <div className={`text-xs mt-1 ${isSent ? 'text-primary-foreground/40' : 'text-muted-foreground/70'}`}>
+              {format(new Date(message.timestamp), 'h:mm a')}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div 
@@ -279,6 +309,16 @@ export function MessageBubble({ message, isSent, onReaction, onEdit, onReply }: 
                   <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit
+                  </DropdownMenuItem>
+                )}
+                
+                {isSent && onDelete && (
+                  <DropdownMenuItem 
+                    onClick={() => onDelete(message.id)} 
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <Trash className="h-4 w-4 mr-2" />
+                    Delete
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

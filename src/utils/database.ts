@@ -246,3 +246,46 @@ export const editMessageInConversation = async (
     return null;
   }
 };
+
+export const deleteMessageInConversation = async (
+  conversationId: string,
+  messageId: string
+): Promise<Conversation | null> => {
+  try {
+    const conversation = await getConversation(conversationId);
+    
+    if (!conversation) {
+      return null;
+    }
+    
+    // Find the message to mark as deleted
+    const updatedMessages = conversation.messages.map(message => {
+      if (message.id === messageId) {
+        return {
+          ...message,
+          text: "This message was deleted", // Replace text with deletion notice
+          deleted: true, // Mark as deleted
+          attachmentUrl: undefined // Remove any attachments
+        };
+      }
+      return message;
+    });
+    
+    const updatedConversation = {
+      ...conversation,
+      messages: updatedMessages
+    };
+    
+    // Update in database
+    const db = await openDBInstance();
+    const tx = db.transaction('conversations', 'readwrite');
+    const store = tx.objectStore('conversations');
+    await store.put(updatedConversation);
+    await tx.done;
+    
+    return updatedConversation;
+  } catch (error) {
+    console.error('Error deleting message in conversation:', error);
+    return null;
+  }
+};

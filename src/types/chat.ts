@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -37,6 +36,7 @@ export interface Message {
   replyToId?: string; // ID of the message this is replying to
   edited?: boolean; // Flag to indicate if this message has been edited
   audioDuration?: number; // Duration of voice message in seconds
+  deleted?: boolean; // Flag to indicate if this message has been deleted
 }
 
 export interface Conversation {

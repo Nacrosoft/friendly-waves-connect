@@ -119,6 +119,10 @@ export function ChatView({ conversation }: ChatViewProps) {
     messagingContext.editMessage(messageId, newText);
   };
 
+  const handleDeleteMessage = (messageId: string) => {
+    messagingContext.deleteMessage(messageId);
+  };
+
   const handleReplyMessage = (messageId: string) => {
     const messageToReply = messages.find(msg => msg.id === messageId);
     if (messageToReply) {
@@ -168,6 +172,7 @@ export function ChatView({ conversation }: ChatViewProps) {
             onReaction={(emoji, isCustom, customEmojiId) => handleReaction(message.id, emoji, isCustom, customEmojiId)}
             onEdit={isSent ? handleEditMessage : undefined}
             onReply={() => handleReplyMessage(message.id)}
+            onDelete={isSent ? handleDeleteMessage : undefined}
           />
         </div>
       );

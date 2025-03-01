@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 import { 
@@ -13,7 +12,8 @@ import {
   saveCustomEmoji,
   getCustomEmojisForUser,
   deleteCustomEmoji,
-  editMessageInConversation
+  editMessageInConversation,
+  deleteMessageInConversation
 } from '@/utils/database';
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,7 @@ interface MessagingContextType {
   saveCustomEmoji: (emoji: CustomEmoji) => Promise<CustomEmoji>;
   deleteUserEmoji: (emojiId: string) => Promise<boolean>;
   editMessage: (messageId: string, newText: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<void>;
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -133,7 +134,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       timestamp: new Date(),
       read: false,
       type: 'text',
-      replyToId // Add replyToId if we're replying to a message
+      replyToId
     };
     
     try {
@@ -193,8 +194,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!selectedConversation || !currentUser) return;
     
     try {
-      // Implementation will depend on how your database utility functions work
-      // We'll assume there's an editMessageInConversation function
       const updatedConversation = await editMessageInConversation(
         selectedConversation.id,
         messageId,
@@ -371,6 +370,39 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const deleteMessage = async (messageId: string) => {
+    if (!selectedConversation || !currentUser) return;
+    
+    try {
+      const updatedConversation = await deleteMessageInConversation(
+        selectedConversation.id,
+        messageId
+      );
+      
+      if (updatedConversation) {
+        setSelectedConversation(updatedConversation);
+        
+        setConversations(prevConversations => 
+          prevConversations.map(conv => 
+            conv.id === selectedConversation.id ? updatedConversation : conv
+          )
+        );
+        
+        toast({
+          title: 'Message deleted',
+          description: 'Your message was deleted successfully.',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not delete the message.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   return (
     <MessagingContext.Provider
       value={{
@@ -384,7 +416,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         startNewConversation,
         saveCustomEmoji: saveUserEmoji,
         deleteUserEmoji,
-        editMessage
+        editMessage,
+        deleteMessage
       }}
     >
       {children}
