@@ -7,6 +7,7 @@ import Register from '@/pages/Register';
 import Chat from '@/pages/Chat';
 import Status from '@/pages/Status';
 import UserProfile from '@/pages/UserProfile';
+import Settings from '@/pages/Settings';
 import { Toaster } from '@/components/ui/toaster';
 import { CallModal } from '@/components/CallModal';
 import { useMessaging } from '@/context/MessagingContext';
@@ -54,6 +55,14 @@ function App() {
             element={
               <PrivateRoute>
                 <UserProfile />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <PrivateRoute>
+                <Settings />
               </PrivateRoute>
             }
           />
