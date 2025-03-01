@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { Conversation, Message, User, Reaction } from '@/types/chat';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +21,7 @@ interface MessagingContextType {
   isLoadingConversations: boolean;
   selectConversation: (conversationId: string) => void;
   sendMessage: (text: string, type?: 'text' | 'image' | 'video' | 'file' | 'voice', attachmentUrl?: string, audioDuration?: number) => Promise<void>;
+  sendAttachmentMessage: (message: Message) => Promise<void>;
   startNewConversation: (userId: string) => Promise<void>;
   markAsRead: (conversationId: string) => Promise<void>;
   addReaction: (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => Promise<void>;
@@ -79,6 +81,22 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     loadConversations(); // Refresh conversations after sending a message
   };
 
+  // New function to send attachment messages (image, video, file, voice)
+  const sendAttachmentMessage = async (message: Message) => {
+    if (!activeConversationId || !currentUser) return;
+    
+    // Make sure the sender ID is correctly set
+    message.senderId = currentUser.id;
+    
+    // If the message doesn't have an ID, generate one
+    if (!message.id) {
+      message.id = uuidv4();
+    }
+    
+    await addMessageToConversation(activeConversationId, message);
+    loadConversations(); // Refresh conversations after sending a message
+  };
+
   const startNewConversation = async (userId: string) => {
     if (!currentUser) return;
 
@@ -134,6 +152,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isLoadingConversations,
     selectConversation,
     sendMessage,
+    sendAttachmentMessage,
     startNewConversation,
     markAsRead,
     addReaction,

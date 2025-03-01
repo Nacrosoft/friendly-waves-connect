@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -54,7 +53,8 @@ export function ChatView({ conversation }: ChatViewProps) {
       return;
     }
     
-    messagingContext.sendMessage(text, replyToMessage?.id);
+    // We're passing 'text' as type here, not the replyToMessage.id
+    messagingContext.sendMessage(text);
     setReplyToMessage(null);
     scrollToBottom();
   };
@@ -90,7 +90,7 @@ export function ChatView({ conversation }: ChatViewProps) {
           replyToId: replyToMessage?.id // Include reply info if replying
         };
         
-        // Custom function to add attachment message
+        // Use the new function to send attachment message
         messagingContext.sendAttachmentMessage(newMessage);
         setReplyToMessage(null);
         scrollToBottom();
@@ -137,7 +137,7 @@ export function ChatView({ conversation }: ChatViewProps) {
           replyToId: replyToMessage?.id // Include reply info if replying
         };
         
-        // Send the voice message
+        // Use the new function to send voice message
         messagingContext.sendAttachmentMessage(newMessage);
         setReplyToMessage(null);
         scrollToBottom();
