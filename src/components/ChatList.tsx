@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 interface ChatListProps {
   conversations: Conversation[];
   selectedConversationId: string | null;
-  onSelectConversation: (conversation: Conversation) => void;
+  onSelectConversation: (conversationId: string) => void;
 }
 
 export function ChatList({ conversations, selectedConversationId, onSelectConversation }: ChatListProps) {
@@ -24,7 +24,7 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
           return (
             <div
               key={conversation.id}
-              onClick={() => onSelectConversation(conversation)}
+              onClick={() => onSelectConversation(conversation.id)}
               className={`p-3 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-all duration-200 ${
                 isSelected ? 'bg-muted/80' : ''
               }`}
@@ -65,19 +65,21 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
 }
 
 function formatTime(date: Date): string {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  
   const now = new Date();
-  const isToday = now.toDateString() === date.toDateString();
+  const isToday = now.toDateString() === dateObj.toDateString();
   
   if (isToday) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   
   // If within the last week, return day name
-  const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const daysDiff = Math.floor((now.getTime() - dateObj.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff < 7) {
-    return date.toLocaleDateString([], { weekday: 'short' });
+    return dateObj.toLocaleDateString([], { weekday: 'short' });
   }
   
   // Otherwise return date
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }

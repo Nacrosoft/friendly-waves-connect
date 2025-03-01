@@ -7,6 +7,11 @@ export interface User {
   lastSeen?: Date;
 }
 
+export interface Reaction {
+  emoji: string;
+  userId: string;
+}
+
 export interface Message {
   id: string;
   senderId: string;
@@ -15,6 +20,7 @@ export interface Message {
   read: boolean;
   type: 'text' | 'image' | 'file';
   attachmentUrl?: string;
+  reactions?: Reaction[];
 }
 
 export interface Conversation {

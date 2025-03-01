@@ -3,18 +3,23 @@ import React, { useState } from 'react';
 import { ChatList } from '@/components/ChatList';
 import { ChatView } from '@/components/ChatView';
 import { EmptyState } from '@/components/EmptyState';
-import { conversations } from '@/data/conversations';
-import { Conversation } from '@/types/chat';
 import { MessageSquare, Users, Settings, Menu, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useMessaging } from '@/context/MessagingContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { 
+    conversations, 
+    selectedConversation, 
+    selectConversation,
+    isLoading
+  } = useMessaging();
   
   // On mobile, sidebar is closed by default
   React.useEffect(() => {
@@ -25,8 +30,8 @@ const Index = () => {
     }
   }, [isMobile]);
   
-  const handleSelectConversation = (conversation: Conversation) => {
-    setSelectedConversation(conversation);
+  const handleSelectConversation = (conversationId: string) => {
+    selectConversation(conversationId);
     // On mobile, close sidebar when conversation is selected
     if (isMobile) {
       setSidebarOpen(false);
@@ -43,6 +48,10 @@ const Index = () => {
       description: "This feature will be available in a future update.",
     });
   };
+  
+  if (isLoading) {
+    return <LoadingState />;
+  }
   
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -114,5 +123,30 @@ const Index = () => {
     </div>
   );
 };
+
+const LoadingState = () => (
+  <div className="flex h-screen overflow-hidden bg-background">
+    <div className="w-16 border-r border-border"></div>
+    <div className="w-80 border-r border-border p-4">
+      <Skeleton className="h-8 w-3/4 mb-6" />
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 mb-4">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="flex-1 flex justify-center items-center">
+      <div className="text-center">
+        <Skeleton className="h-16 w-16 rounded-full mx-auto mb-4" />
+        <Skeleton className="h-6 w-48 mx-auto mb-2" />
+        <Skeleton className="h-4 w-64 mx-auto" />
+      </div>
+    </div>
+  </div>
+);
 
 export default Index;
