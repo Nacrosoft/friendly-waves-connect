@@ -153,18 +153,58 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const handleReaction = (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
+    // Don't allow reactions in the official account chat
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot react to Meetefy messages",
+        description: "This is the official Meetefy account. You cannot react to messages in this conversation.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     messagingContext.addReaction(messageId, emoji, isCustom, customEmojiId);
   };
 
   const handleEditMessage = (messageId: string, newText: string) => {
+    // Don't allow editing in the official account chat
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot edit messages to Meetefy",
+        description: "This is the official Meetefy account. You cannot edit messages in this conversation.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     messagingContext.editMessage(messageId, newText);
   };
 
   const handleDeleteMessage = (messageId: string) => {
+    // Don't allow deleting in the official account chat
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot delete messages to Meetefy",
+        description: "This is the official Meetefy account. You cannot delete messages in this conversation.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     messagingContext.deleteMessage(messageId);
   };
 
   const handleReplyMessage = (messageId: string) => {
+    // Don't allow replying in the official account chat
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot reply to Meetefy messages",
+        description: "This is the official Meetefy account. You cannot reply to messages in this conversation.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const messageToReply = messages.find(msg => msg.id === messageId);
     if (messageToReply) {
       setReplyToMessage(messageToReply);
@@ -211,9 +251,9 @@ export function ChatView({ conversation }: ChatViewProps) {
             message={message}
             isSent={isSent}
             onReaction={(emoji, isCustom, customEmojiId) => handleReaction(message.id, emoji, isCustom, customEmojiId)}
-            onEdit={isSent ? handleEditMessage : undefined}
+            onEdit={isSent && !isOfficialAccount ? handleEditMessage : undefined}
             onReply={() => handleReplyMessage(message.id)}
-            onDelete={isSent ? handleDeleteMessage : undefined}
+            onDelete={isSent && !isOfficialAccount ? handleDeleteMessage : undefined}
           />
         </div>
       );
