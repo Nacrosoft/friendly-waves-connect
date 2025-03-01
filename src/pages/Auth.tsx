@@ -45,6 +45,7 @@ const Auth = () => {
               variant={isLogin ? "default" : "outline"} 
               className="flex-1"
               onClick={() => setIsLogin(true)}
+              type="button"
             >
               Login
             </Button>
@@ -52,6 +53,7 @@ const Auth = () => {
               variant={!isLogin ? "default" : "outline"} 
               className="flex-1"
               onClick={() => setIsLogin(false)}
+              type="button"
             >
               Register
             </Button>
