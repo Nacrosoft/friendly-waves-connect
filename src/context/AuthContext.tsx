@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
@@ -7,11 +8,12 @@ interface AuthContextType {
   allUsers: User[] | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  error: string | null; // Add error property
   login: (username: string, password: string) => Promise<boolean>;
-  register: (name: string, username: string, password: string, avatar?: string) => Promise<boolean>;
+  register: (name: string, password: string, avatar?: string) => Promise<boolean>;
   logout: () => void;
   updateUserStatus: (status: 'online' | 'offline' | 'away') => Promise<void>;
-  updateUser: (user: User) => Promise<void>; // Added to support story updates
+  updateUser: (user: User) => Promise<void>; // Changed return type to void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // Add error state
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,9 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAllUsers(users);
         
         // Check for a logged-in user
-        const loggedInUsername = localStorage.getItem('loggedInUser');
-        if (loggedInUsername) {
-          const user = users.find(u => u.username === loggedInUsername);
+        const loggedInUserId = localStorage.getItem('loggedInUser');
+        if (loggedInUserId) {
+          const user = users.find(u => u.id === loggedInUserId);
           if (user) {
             setCurrentUser(user);
           }
@@ -55,33 +58,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    setError(null);
     try {
       const usersStr = localStorage.getItem('users');
       const users: User[] = usersStr ? JSON.parse(usersStr) : [];
       
-      const user = users.find(u => u.username === username && u.password === password);
+      const user = users.find(u => u.name === username && u.password === password);
       
       if (user) {
         setCurrentUser(user);
-        localStorage.setItem('loggedInUser', username);
+        localStorage.setItem('loggedInUser', user.id);
         toast({
           title: 'Login Successful',
           description: `Welcome back, ${user.name}!`,
         });
         return true;
       } else {
+        const errorMessage = 'Invalid username or password.';
+        setError(errorMessage);
         toast({
           title: 'Login Failed',
-          description: 'Invalid username or password.',
+          description: errorMessage,
           variant: 'destructive'
         });
         return false;
       }
     } catch (error) {
+      const errorMessage = 'Failed to log in. Please try again.';
       console.error('Login error:', error);
+      setError(errorMessage);
       toast({
         title: 'Login Error',
-        description: 'Failed to log in. Please try again.',
+        description: errorMessage,
         variant: 'destructive'
       });
       return false;
@@ -90,16 +98,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, username: string, password: string, avatar?: string): Promise<boolean> => {
+  const register = async (name: string, password: string, avatar?: string): Promise<boolean> => {
     setIsLoading(true);
+    setError(null);
     try {
       const usersStr = localStorage.getItem('users');
       let users: User[] = usersStr ? JSON.parse(usersStr) : [];
       
-      if (users.some(u => u.username === username)) {
+      if (users.some(u => u.name === name)) {
+        const errorMessage = 'Username already exists.';
+        setError(errorMessage);
         toast({
           title: 'Registration Failed',
-          description: 'Username already exists.',
+          description: errorMessage,
           variant: 'destructive'
         });
         return false;
@@ -108,7 +119,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newUser: User = {
         id: `user-${Date.now()}`,
         name,
-        username,
         password,
         avatar: avatar || `https://avatar.vercel.sh/${name}.svg`,
         status: 'online',
@@ -120,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAllUsers(users);
       
       setCurrentUser(newUser);
-      localStorage.setItem('loggedInUser', username);
+      localStorage.setItem('loggedInUser', newUser.id);
       
       toast({
         title: 'Registration Successful',
@@ -128,10 +138,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return true;
     } catch (error) {
+      const errorMessage = 'Failed to register. Please try again.';
       console.error('Registration error:', error);
+      setError(errorMessage);
       toast({
         title: 'Registration Error',
-        description: 'Failed to register. Please try again.',
+        description: errorMessage,
         variant: 'destructive'
       });
       return false;
@@ -183,39 +195,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Add the updateUser method to the context value
+  const updateUser = async (user: User): Promise<void> => {
+    try {
+      // Update user in the database
+      await updateUserInDatabase(user);
+      
+      // Update the current user if it's the same user
+      if (currentUser && currentUser.id === user.id) {
+        setCurrentUser(user);
+      }
+      
+      // Update the user in the allUsers array
+      if (allUsers) {
+        const updatedAllUsers = allUsers.map(u => 
+          u.id === user.id ? user : u
+        );
+        setAllUsers(updatedAllUsers);
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     currentUser,
     allUsers,
     isAuthenticated: !!currentUser,
     isLoading,
+    error,
     login,
     register,
     logout,
     updateUserStatus,
-    updateUser: async (user: User) => {
-      try {
-        // Update user in the database
-        const updatedUser = await updateUserInDatabase(user);
-        
-        // Update the current user if it's the same user
-        if (currentUser && currentUser.id === user.id) {
-          setCurrentUser(updatedUser);
-        }
-        
-        // Update the user in the allUsers array
-        if (allUsers) {
-          const updatedAllUsers = allUsers.map(u => 
-            u.id === user.id ? updatedUser : u
-          );
-          setAllUsers(updatedAllUsers);
-        }
-        
-        return updatedUser;
-      } catch (error) {
-        console.error('Error updating user:', error);
-        throw error;
-      }
-    }
+    updateUser
   };
 
   return (

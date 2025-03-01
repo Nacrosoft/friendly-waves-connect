@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { currentUser, logout, updateCurrentUser } = useAuth();
+  const { currentUser, logout, updateUser } = useAuth();
   const { toast } = useToast();
 
   const handleBack = () => {
@@ -73,7 +73,7 @@ const Settings = () => {
           
           <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
             <h2 className="text-xl font-semibold mb-4">Avatar Maker</h2>
-            <AvatarMaker user={currentUser} onUpdate={updateCurrentUser} />
+            <AvatarMaker user={currentUser} onUpdate={updateUser} />
           </div>
 
           <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
