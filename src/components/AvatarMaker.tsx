@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Slider } from '@/components/ui/slider';
 import { 
   User, 
   UserRound, 
@@ -9,11 +9,14 @@ import {
   Palette, 
   Glasses, 
   Shirt, 
-  RefreshCw 
+  RefreshCw,
+  Crown,
+  VenetianMask
 } from 'lucide-react';
 import { User as UserType } from '@/types/chat';
 import { saveUser } from '@/utils/database';
 import { useToast } from '@/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const AVATAR_BASE_URL = 'https://api.dicebear.com/7.x';
 const AVATAR_STYLES = [
@@ -25,13 +28,57 @@ const AVATAR_STYLES = [
   { id: 'adventurer', name: 'Adventurer', icon: <Shirt className="h-4 w-4" /> },
 ];
 
-const AVATAR_OPTIONS: Record<string, string[]> = {
-  'avataaars': ['accessories', 'beard', 'clothesColor', 'facialHair', 'hairColor', 'skinColor', 'top', 'clothesType'],
-  'bottts': ['colors', 'colorful', 'primaryColorLevel', 'secondaryColorLevel', 'texture'],
-  'personas': ['backgroundColor', 'clothesColor', 'skinColor', 'hair', 'hairColor', 'clothing', 'accessory', 'eyes', 'mouth'],
-  'pixel-art': ['background', 'beard', 'clothing', 'earrings', 'eyes', 'hair', 'mouth'],
-  'lorelei': ['background', 'beard', 'clothing', 'eyes', 'freckles', 'hair', 'hairAccessory', 'mouth'],
-  'adventurer': ['background', 'body', 'clothing', 'earrings', 'eyebrows', 'eyes', 'hair', 'mouth', 'skinColor'],
+// Customization options for each avatar style
+const AVATAR_OPTIONS: Record<string, {[key: string]: string[]}> = {
+  'avataaars': {
+    'Accessories': ['glasses', 'eyepatch', 'sunglasses', 'none'],
+    'Beard': ['light', 'medium', 'majestic', 'none'],
+    'Clothes Color': ['blue', 'black', 'red', 'green', 'pink'],
+    'Facial Hair': ['mustache', 'goatee', 'none'],
+    'Hair Color': ['blonde', 'brown', 'black', 'red', 'gray', 'platinum'],
+    'Skin Color': ['light', 'yellow', 'pale', 'brown', 'dark', 'black'],
+    'Top': ['hat', 'hijab', 'turban', 'winterHat', 'longHair', 'shortHair', 'eyepatch', 'none'],
+    'Clothes Type': ['blazer', 'sweater', 'hoodie', 'overall', 'blazerAndShirt', 'collarAndSweater']
+  },
+  'bottts': {
+    'Colors': ['amber', 'blue', 'cyan', 'emerald', 'fuchsia', 'rose', 'violet', 'yellow'],
+    'Colorful': ['true', 'false'],
+    'Texture': ['circuits', 'dots', 'stripes', 'none']
+  },
+  'personas': {
+    'Background Color': ['amber', 'blue', 'cyan', 'emerald', 'fuchsia', 'rose', 'violet', 'yellow'],
+    'Clothes Color': ['black', 'blue', 'green', 'red', 'white'],
+    'Skin Color': ['ecru', 'brown', 'black', 'yellow', 'peach'],
+    'Hair': ['fonze', 'full', 'pixie', 'caesar', 'clean', 'bald'],
+    'Hair Color': ['auburn', 'black', 'blonde', 'brown', 'platinum', 'gray', 'red'],
+    'Clothing': ['blazer', 'hoodie', 'shirt', 'dress', 'turtleneck'],
+    'Accessory': ['glasses', 'necklace', 'earrings', 'none'],
+    'Eyes': ['narrow', 'round', 'smiling', 'sunglasses'],
+    'Mouth': ['smile', 'grin', 'openSmile', 'serious', 'neutral']
+  },
+  'pixel-art': {
+    'Background': ['blue', 'purple', 'green', 'yellow', 'red', 'gradient', 'none'],
+    'Beard': ['full', 'goatee', 'none'],
+    'Clothing': ['crew', 'collared', 'vneck', 'none'],
+    'Eyes': ['round', 'squint', 'closed', 'sleepy'],
+    'Hair': ['crew', 'long', 'bob', 'mohawk', 'buzzcut', 'bald']
+  },
+  'lorelei': {
+    'Background': ['solid', 'gradient', 'none'],
+    'Clothing': ['dress', 'tshirt', 'suit'],
+    'Eyes': ['big', 'round', 'smiling', 'closed', 'heart'],
+    'Hair': ['long', 'bun', 'pixie', 'bald'],
+    'Hair Accessory': ['flowers', 'bow', 'none'],
+    'Mouth': ['laughing', 'smile', 'frown', 'expressionless']
+  },
+  'adventurer': {
+    'Background': ['blue', 'purple', 'green', 'yellow', 'red', 'none'],
+    'Body': ['default', 'slim', 'athletic'],
+    'Clothing': ['robe', 'tunic', 'shirt', 'dress'],
+    'Hair': ['long', 'short', 'mohawk', 'bald'],
+    'Mouth': ['smile', 'serious', 'surprised'],
+    'Skin Color': ['light', 'fair', 'tan', 'dark', 'brown']
+  },
 };
 
 interface AvatarMakerProps {
@@ -42,25 +89,24 @@ interface AvatarMakerProps {
 const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
   const [selectedStyle, setSelectedStyle] = useState(AVATAR_STYLES[0].id);
   const [seed, setSeed] = useState(user.id || 'avatar');
-  const [options, setOptions] = useState<Record<string, any>>({});
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  const generateRandomOptions = () => {
-    const newOptions: Record<string, any> = {};
+  const generateRandomAvatar = () => {
     setSeed(Math.random().toString(36).substring(2, 10));
-    setOptions(newOptions);
+    setSelectedOptions({});
   };
 
-  const updateOption = (option: string, value: any) => {
-    setOptions((prev) => ({ ...prev, [option]: value }));
+  const updateOption = (category: string, value: string) => {
+    setSelectedOptions((prev) => ({ ...prev, [category.toLowerCase().replace(/\s+/g, '')]: value }));
   };
 
   const buildAvatarUrl = () => {
     let url = `${AVATAR_BASE_URL}/${selectedStyle}/svg?seed=${seed}`;
     
-    Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined) {
-        url += `&${key}=${encodeURIComponent(value.toString())}`;
+    Object.entries(selectedOptions).forEach(([key, value]) => {
+      if (value !== 'none' && value !== '') {
+        url += `&${key}=${encodeURIComponent(value)}`;
       }
     });
     
@@ -88,18 +134,36 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
     }
   };
 
-  const renderOptionControl = (option: string) => {
+  const getIconForCategory = (category: string) => {
+    switch(category.toLowerCase()) {
+      case 'accessories': return <Glasses className="h-4 w-4" />;
+      case 'hair': case 'hair color': return <Crown className="h-4 w-4" />;
+      case 'facial hair': case 'beard': return <VenetianMask className="h-4 w-4" />;
+      case 'clothes type': case 'clothing': return <Shirt className="h-4 w-4" />;
+      default: return <Palette className="h-4 w-4" />;
+    }
+  };
+
+  const renderCustomizationOption = (category: string, options: string[]) => {
     return (
-      <div key={option} className="space-y-2">
-        <div className="flex justify-between">
-          <span className="text-sm font-medium">{option.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}</span>
+      <div key={category} className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          {getIconForCategory(category)}
+          <span className="font-medium">{category}</span>
         </div>
-        <Slider
-          defaultValue={[50]}
-          max={100}
-          step={1}
-          onValueChange={(values) => updateOption(option, values[0])}
-        />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          {options.map((option) => (
+            <Button
+              key={option}
+              variant={selectedOptions[category.toLowerCase().replace(/\s+/g, '')] === option ? "default" : "outline"}
+              size="sm"
+              className="text-xs h-auto py-1.5"
+              onClick={() => updateOption(category, option)}
+            >
+              {option === 'none' ? 'None' : option.charAt(0).toUpperCase() + option.slice(1)}
+            </Button>
+          ))}
+        </div>
       </div>
     );
   };
@@ -118,18 +182,18 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
         <div className="flex-1 space-y-4">
           <h3 className="text-lg font-medium">Avatar Maker</h3>
           <p className="text-sm text-muted-foreground">
-            Create your custom avatar by selecting a style and customizing features
+            Create your custom avatar by selecting a style and choosing different options
           </p>
           
           <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={generateRandomOptions}
+              onClick={generateRandomAvatar}
               className="flex items-center gap-1"
             >
               <RefreshCw className="h-3.5 w-3.5 mr-1" />
-              Randomize
+              Random Avatar
             </Button>
             
             <Button 
@@ -149,6 +213,7 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
               key={style.id} 
               value={style.id}
               className="flex items-center gap-1"
+              onClick={() => setSelectedOptions({})}
             >
               {style.icon}
               <span className="ml-1">{style.name}</span>
@@ -158,7 +223,11 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
         
         {AVATAR_STYLES.map(style => (
           <TabsContent key={style.id} value={style.id} className="space-y-4">
-            {AVATAR_OPTIONS[style.id]?.map(option => renderOptionControl(option))}
+            <div className="bg-muted/40 rounded-lg p-4 space-y-4">
+              {Object.entries(AVATAR_OPTIONS[style.id] || {}).map(([category, options]) => 
+                renderCustomizationOption(category, options)
+              )}
+            </div>
           </TabsContent>
         ))}
       </Tabs>
