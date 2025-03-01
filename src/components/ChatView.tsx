@@ -1,96 +1,117 @@
-
-import React, { useEffect, useRef, useState } from 'react';
-import { Conversation, Message } from '@/types/chat';
-import { ChatHeader } from './ChatHeader';
-import { MessageBubble } from './MessageBubble';
-import { MessageInput } from './MessageInput';
-import { getOtherParticipant } from '@/data/conversations';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChatHeader } from '@/components/ChatHeader';
+import { MessageBubble } from '@/components/MessageBubble';
+import { MessageInput } from '@/components/MessageInput';
 import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus } from 'lucide-react';
-import { Button } from './ui/button';
-import { AddUserDialog } from './AddUserDialog';
+import { Message } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 
 interface ChatViewProps {
-  conversation: Conversation;
+  conversation: any;
 }
 
 export function ChatView({ conversation }: ChatViewProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { sendMessage, addReaction, startNewConversation } = useMessaging();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagingContext = useMessaging();
   const { currentUser } = useAuth();
   const { toast } = useToast();
-  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
-  
-  const otherUser = getOtherParticipant(conversation, currentUser?.id || '');
-  
+
   useEffect(() => {
+    if (conversation) {
+      setMessages(conversation.messages);
+    }
+  }, [conversation]);
+
+  useEffect(() => {
+    if (conversation) {
+      setMessages(conversation.messages);
+    }
+  }, [conversation, messagingContext.conversations]);
+
+  const sendMessage = (text: string) => {
+    messagingContext.sendMessage(text);
     scrollToBottom();
-  }, [conversation.messages]);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
-  const handleSendMessage = (text: string) => {
-    sendMessage(text);
-  };
-  
-  const handleReaction = (messageId: string, emoji: string) => {
-    addReaction(messageId, emoji);
   };
 
-  const handleAddUser = async (userId: string) => {
+  const sendAttachment = async (file: File, type: 'image' | 'video') => {
     try {
-      await startNewConversation(userId);
-      toast({
-        title: 'Success',
-        description: 'New conversation started',
-      });
+      // Convert file to base64 string
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        
+        // Create new message with attachment
+        const newMessage: Message = {
+          id: `msg-${Date.now()}`,
+          senderId: currentUser.id,
+          text: '', // Empty text for attachment-only messages
+          timestamp: new Date(),
+          read: false,
+          type: type,
+          attachmentUrl: base64data
+        };
+        
+        // Custom function to add attachment message
+        messagingContext.sendAttachmentMessage(newMessage);
+        scrollToBottom();
+      };
     } catch (error) {
-      console.error('Error starting conversation:', error);
+      console.error('Error sending attachment:', error);
       toast({
         title: 'Error',
-        description: 'Could not start conversation',
-        variant: 'destructive',
+        description: 'Failed to send attachment',
+        variant: 'destructive'
       });
     }
   };
-  
+
+  const handleReaction = (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
+    messagingContext.addReaction(messageId, emoji, isCustom, customEmojiId);
+  };
+
+  const renderMessages = () => {
+    return messages.map((message) => {
+      const isSent = message.senderId === currentUser?.id;
+      
+      return (
+        <MessageBubble
+          key={message.id}
+          message={message}
+          isSent={isSent}
+          onReaction={(emoji, isCustom, customEmojiId) => handleReaction(message.id, emoji, isCustom, customEmojiId)}
+        />
+      );
+    });
+  };
+
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden animate-fade-in bg-secondary/30">
-      <ChatHeader user={otherUser} />
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-hidden">
-        <div className="flex flex-col space-y-2">
-          {conversation.messages.map(message => (
-            <MessageBubble 
-              key={message.id} 
-              message={message} 
-              isSent={message.senderId === currentUser?.id}
-              onReaction={(emoji) => handleReaction(message.id, emoji)}
-            />
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+    <div className="flex flex-col h-full">
+      <ChatHeader conversation={conversation} currentUserId={currentUser?.id} />
+      
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
+        {renderMessages()}
       </div>
-      <div className="flex items-center">
-        <Button 
-          onClick={() => setIsAddUserDialogOpen(true)}
-          variant="ghost" 
-          size="icon"
-          className="rounded-full h-8 w-8"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <MessageInput onSendMessage={handleSendMessage} />
-        </div>
-      </div>
-      <AddUserDialog 
-        open={isAddUserDialogOpen} 
-        onOpenChange={setIsAddUserDialogOpen} 
-        onAddUser={handleAddUser}
+      
+      <MessageInput 
+        onSendMessage={sendMessage} 
+        onSendAttachment={sendAttachment}
       />
     </div>
   );

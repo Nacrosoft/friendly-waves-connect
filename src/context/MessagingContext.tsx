@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Conversation, Message, Reaction, User } from '@/types/chat';
+import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 import { 
   initDatabase, 
   getAllConversations, 
@@ -8,7 +8,10 @@ import {
   markConversationAsRead,
   addReactionToMessage,
   saveConversation,
-  getUser
+  getUser,
+  saveCustomEmoji,
+  getCustomEmojisForUser,
+  deleteCustomEmoji
 } from '@/utils/database';
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
@@ -20,8 +23,11 @@ interface MessagingContextType {
   isLoading: boolean;
   selectConversation: (conversationId: string) => void;
   sendMessage: (text: string) => Promise<void>;
-  addReaction: (messageId: string, emoji: string) => Promise<void>;
+  sendAttachmentMessage: (message: Message) => Promise<void>;
+  addReaction: (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => Promise<void>;
   startNewConversation: (userId: string) => Promise<void>;
+  saveCustomEmoji: (emoji: CustomEmoji) => Promise<CustomEmoji>;
+  deleteUserEmoji: (emojiId: string) => Promise<boolean>;
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -151,12 +157,42 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const addReaction = async (messageId: string, emoji: string) => {
+  const sendAttachmentMessage = async (message: Message) => {
+    if (!selectedConversation || !currentUser) return;
+    
+    try {
+      const updatedConversation = await addMessageToConversation(
+        selectedConversation.id, 
+        message
+      );
+      
+      if (updatedConversation) {
+        setSelectedConversation(updatedConversation);
+        
+        setConversations(prevConversations => 
+          prevConversations.map(conv => 
+            conv.id === selectedConversation.id ? updatedConversation : conv
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error sending attachment message:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not send the attachment.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const addReaction = async (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
     if (!selectedConversation || !currentUser) return;
     
     const reaction: Reaction = {
       emoji,
-      userId: currentUser.id
+      userId: currentUser.id,
+      isCustom,
+      customEmojiId
     };
     
     try {
@@ -182,6 +218,65 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: 'Could not add the reaction.',
         variant: 'destructive'
       });
+    }
+  };
+
+  const saveUserEmoji = async (emoji: CustomEmoji): Promise<CustomEmoji> => {
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      const savedEmoji = await saveCustomEmoji(emoji);
+      
+      if (currentUser) {
+        const updatedUser = {...currentUser};
+        if (!updatedUser.customEmojis) {
+          updatedUser.customEmojis = [];
+        }
+        
+        const existingIndex = updatedUser.customEmojis.findIndex(e => e.id === emoji.id);
+        if (existingIndex >= 0) {
+          updatedUser.customEmojis[existingIndex] = savedEmoji;
+        } else {
+          updatedUser.customEmojis.push(savedEmoji);
+        }
+      }
+      
+      return savedEmoji;
+    } catch (error) {
+      console.error('Error saving custom emoji:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not save the custom emoji.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
+  const deleteUserEmoji = async (emojiId: string): Promise<boolean> => {
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      const success = await deleteCustomEmoji(emojiId, currentUser.id);
+      
+      if (success && currentUser.customEmojis) {
+        const updatedUser = {...currentUser};
+        updatedUser.customEmojis = updatedUser.customEmojis.filter(e => e.id !== emojiId);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Error deleting custom emoji:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not delete the custom emoji.',
+        variant: 'destructive'
+      });
+      throw error;
     }
   };
 
@@ -244,8 +339,11 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isLoading,
         selectConversation,
         sendMessage,
+        sendAttachmentMessage,
         addReaction,
-        startNewConversation
+        startNewConversation,
+        saveCustomEmoji: saveUserEmoji,
+        deleteUserEmoji
       }}
     >
       {children}

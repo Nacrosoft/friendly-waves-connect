@@ -1,10 +1,11 @@
-import { Conversation, Message, User, Reaction } from "@/types/chat";
+import { Conversation, Message, User, Reaction, CustomEmoji } from "@/types/chat";
 
 // Database configuration
 const DB_NAME = 'messengerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Upgrading version for new store
 const CONVERSATIONS_STORE = 'conversations';
 const USERS_STORE = 'users';
+const CUSTOM_EMOJIS_STORE = 'customEmojis';
 
 // Initialize the database
 export const initDatabase = (): Promise<boolean> => {
@@ -33,6 +34,11 @@ export const initDatabase = (): Promise<boolean> => {
       if (!db.objectStoreNames.contains(USERS_STORE)) {
         const usersStore = db.createObjectStore(USERS_STORE, { keyPath: 'id' });
         usersStore.createIndex('name', 'name', { unique: false });
+      }
+      
+      if (!db.objectStoreNames.contains(CUSTOM_EMOJIS_STORE)) {
+        const customEmojisStore = db.createObjectStore(CUSTOM_EMOJIS_STORE, { keyPath: 'id' });
+        customEmojisStore.createIndex('userId', 'userId', { unique: false });
       }
     };
   });
@@ -113,6 +119,123 @@ export const getAllUsers = async (): Promise<User[]> => {
     
     request.onerror = (event) => {
       console.error('Error getting all users:', event);
+      reject(event);
+    };
+    
+    transaction.oncomplete = () => {
+      db.close();
+    };
+  });
+};
+
+// Custom Emoji operations
+export const saveCustomEmoji = async (emoji: CustomEmoji): Promise<CustomEmoji> => {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([CUSTOM_EMOJIS_STORE, USERS_STORE], 'readwrite');
+    const emojiStore = transaction.objectStore(CUSTOM_EMOJIS_STORE);
+    const userStore = transaction.objectStore(USERS_STORE);
+    
+    // Save emoji
+    const emojiRequest = emojiStore.put(emoji);
+    
+    emojiRequest.onsuccess = async () => {
+      // Update user with new emoji reference
+      const userRequest = userStore.get(emoji.userId);
+      
+      userRequest.onsuccess = () => {
+        const user = userRequest.result;
+        if (user) {
+          if (!user.customEmojis) {
+            user.customEmojis = [];
+          }
+          
+          // Check if emoji already exists for user
+          const existingIndex = user.customEmojis.findIndex(e => e.id === emoji.id);
+          if (existingIndex >= 0) {
+            user.customEmojis[existingIndex] = emoji;
+          } else {
+            user.customEmojis.push(emoji);
+          }
+          
+          userStore.put(user);
+        }
+        
+        resolve(emoji);
+      };
+      
+      userRequest.onerror = (event) => {
+        console.error('Error updating user with emoji:', event);
+        reject(event);
+      };
+    };
+    
+    emojiRequest.onerror = (event) => {
+      console.error('Error saving emoji:', event);
+      reject(event);
+    };
+    
+    transaction.oncomplete = () => {
+      db.close();
+    };
+  });
+};
+
+export const getCustomEmojisForUser = async (userId: string): Promise<CustomEmoji[]> => {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([CUSTOM_EMOJIS_STORE], 'readonly');
+    const store = transaction.objectStore(CUSTOM_EMOJIS_STORE);
+    const index = store.index('userId');
+    const request = index.getAll(userId);
+    
+    request.onsuccess = () => {
+      resolve(request.result || []);
+    };
+    
+    request.onerror = (event) => {
+      console.error('Error getting emojis for user:', event);
+      reject(event);
+    };
+    
+    transaction.oncomplete = () => {
+      db.close();
+    };
+  });
+};
+
+export const deleteCustomEmoji = async (emojiId: string, userId: string): Promise<boolean> => {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([CUSTOM_EMOJIS_STORE, USERS_STORE], 'readwrite');
+    const emojiStore = transaction.objectStore(CUSTOM_EMOJIS_STORE);
+    const userStore = transaction.objectStore(USERS_STORE);
+    
+    // Delete emoji
+    const emojiRequest = emojiStore.delete(emojiId);
+    
+    emojiRequest.onsuccess = async () => {
+      // Update user to remove emoji reference
+      const userRequest = userStore.get(userId);
+      
+      userRequest.onsuccess = () => {
+        const user = userRequest.result;
+        if (user && user.customEmojis) {
+          user.customEmojis = user.customEmojis.filter(e => e.id !== emojiId);
+          userStore.put(user);
+        }
+        
+        resolve(true);
+      };
+      
+      userRequest.onerror = (event) => {
+        console.error('Error updating user after emoji deletion:', event);
+        reject(event);
+      };
+    };
+    
+    emojiRequest.onerror = (event) => {
+      console.error('Error deleting emoji:', event);
       reject(event);
     };
     
@@ -239,7 +362,9 @@ export const addReactionToMessage = async (
       const currentReactions = message.reactions || [];
       // Avoid duplicate reactions from the same user
       const filteredReactions = currentReactions.filter(r => 
-        !(r.userId === reaction.userId && r.emoji === reaction.emoji)
+        !(r.userId === reaction.userId && 
+          ((r.isCustom && r.customEmojiId === reaction.customEmojiId) || 
+           (!r.isCustom && r.emoji === reaction.emoji)))
       );
       return {
         ...message,
