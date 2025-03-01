@@ -74,6 +74,43 @@ export function ChatView({ conversation }: ChatViewProps) {
     }
   };
 
+  const sendVoiceMessage = async (audioBlob: Blob, duration: number) => {
+    try {
+      // Convert blob to base64 string
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        
+        // Create new voice message
+        const newMessage: Message = {
+          id: `msg-${Date.now()}`,
+          senderId: currentUser?.id || '',
+          text: '', // Empty text for voice-only messages
+          timestamp: new Date(),
+          read: false,
+          type: 'voice',
+          attachmentUrl: base64data,
+          audioDuration: duration,
+          replyToId: replyToMessage?.id // Include reply info if replying
+        };
+        
+        // Send the voice message
+        messagingContext.sendAttachmentMessage(newMessage);
+        setReplyToMessage(null);
+        scrollToBottom();
+      };
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send voice message',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleReaction = (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
     messagingContext.addReaction(messageId, emoji, isCustom, customEmojiId);
   };
@@ -116,7 +153,12 @@ export function ChatView({ conversation }: ChatViewProps) {
                 isSent ? 'text-right' : 'text-left'
               }`}
             >
-              Replying to: <span className="italic">{replyToMessage.text || 'Attachment'}</span>
+              Replying to: <span className="italic">
+                {replyToMessage.text || 
+                 (replyToMessage.type === 'image' ? 'Image' : 
+                  replyToMessage.type === 'video' ? 'Video' : 
+                  replyToMessage.type === 'voice' ? 'Voice message' : 'File')}
+              </span>
             </div>
           )}
           
@@ -163,6 +205,7 @@ export function ChatView({ conversation }: ChatViewProps) {
       <MessageInput 
         onSendMessage={sendMessage} 
         onSendAttachment={sendAttachment}
+        onSendVoice={sendVoiceMessage}
         replyToMessage={replyToMessage}
         onCancelReply={cancelReply}
       />

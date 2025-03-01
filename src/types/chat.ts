@@ -31,11 +31,12 @@ export interface Message {
   text: string;
   timestamp: Date;
   read: boolean;
-  type: 'text' | 'image' | 'video' | 'file';
+  type: 'text' | 'image' | 'video' | 'file' | 'voice';
   attachmentUrl?: string;
   reactions?: Reaction[];
   replyToId?: string; // ID of the message this is replying to
   edited?: boolean; // Flag to indicate if this message has been edited
+  audioDuration?: number; // Duration of voice message in seconds
 }
 
 export interface Conversation {

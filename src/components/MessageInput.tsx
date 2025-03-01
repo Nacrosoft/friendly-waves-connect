@@ -1,6 +1,6 @@
 
-import React, { useState, useRef } from 'react';
-import { Smile, Paperclip, Mic, Send, Image, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Smile, Paperclip, Mic, Send, Image, X, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -17,6 +17,7 @@ import CustomEmojiCreator from './CustomEmojiCreator';
 interface MessageInputProps {
   onSendMessage: (text: string) => void;
   onSendAttachment?: (file: File, type: 'image' | 'video') => void;
+  onSendVoice?: (audioBlob: Blob, duration: number) => void;
   replyToMessage?: Message | null;
   onCancelReply?: () => void;
 }
@@ -26,6 +27,7 @@ const emojis = ['😀', '😂', '❤️', '👍', '🎉', '🔥', '😊', '🙏'
 export function MessageInput({ 
   onSendMessage, 
   onSendAttachment, 
+  onSendVoice,
   replyToMessage,
   onCancelReply 
 }: MessageInputProps) {
@@ -34,12 +36,50 @@ export function MessageInput({
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
   const [attachmentType, setAttachmentType] = useState<'image' | 'video' | null>(null);
   const [showEmojiCreator, setShowEmojiCreator] = useState(false);
+  
+  // Voice recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
+  
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
+  // Effect for recording timer
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isRecording]);
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (audioBlob && onSendVoice) {
+      onSendVoice(audioBlob, recordingTime);
+      setAudioBlob(null);
+      setRecordingTime(0);
+      return;
+    }
     
     if (attachment && onSendAttachment && attachmentType) {
       onSendAttachment(attachment, attachmentType);
@@ -50,6 +90,72 @@ export function MessageInput({
     if (message.trim()) {
       onSendMessage(message);
       setMessage('');
+    }
+  };
+  
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+      
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      toast({
+        title: 'Recording started',
+        description: 'Your voice message is being recorded',
+      });
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast({
+        title: 'Recording Error',
+        description: 'Could not access microphone. Please check permissions.',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      toast({
+        title: 'Recording stopped',
+        description: 'Your voice message is ready to send',
+      });
+    }
+  };
+  
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      
+      // Clear the recorded audio data
+      audioChunksRef.current = [];
+      setAudioBlob(null);
+      setIsRecording(false);
+      setRecordingTime(0);
+      
+      toast({
+        title: 'Recording cancelled',
+      });
     }
   };
   
@@ -102,6 +208,12 @@ export function MessageInput({
     setAttachmentType(null);
   };
   
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
   const addEmojiToMessage = (emoji: string) => {
     setMessage(prev => prev + emoji);
   };
@@ -134,7 +246,9 @@ export function MessageInput({
             <div className="flex flex-col">
               <span className="text-xs font-medium">Replying to message</span>
               <span className="text-sm text-muted-foreground truncate">
-                {replyToMessage.text || (replyToMessage.type === 'image' ? 'Image' : 'Video')}
+                {replyToMessage.text || (replyToMessage.type === 'image' ? 'Image' : 
+                  replyToMessage.type === 'video' ? 'Video' : 
+                  replyToMessage.type === 'voice' ? 'Voice message' : 'File')}
               </span>
             </div>
             <Button 
@@ -186,6 +300,69 @@ export function MessageInput({
               >
                 <X className="h-4 w-4" />
               </Button>
+            </div>
+          </div>
+        )}
+        
+        {audioBlob && (
+          <div className="mb-2 relative">
+            <div className="flex items-center gap-2 p-2 bg-background rounded-md border border-border">
+              <div className="relative w-8 h-8 flex items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Mic className="h-4 w-4" />
+              </div>
+              
+              <div className="flex-1">
+                <p className="text-sm font-medium">Voice message</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatTime(recordingTime)} • Ready to send
+                </p>
+              </div>
+              
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setAudioBlob(null)}
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              
+              <audio controls className="hidden">
+                <source src={URL.createObjectURL(audioBlob)} type="audio/webm" />
+              </audio>
+            </div>
+          </div>
+        )}
+        
+        {isRecording && (
+          <div className="mb-2 p-2 bg-red-500/10 border border-red-500/50 rounded-md animate-pulse">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                <span className="text-sm font-medium">Recording voice message</span>
+                <span className="text-xs font-mono">{formatTime(recordingTime)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={cancelRecording}
+                  className="h-7 w-7"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={stopRecording}
+                  className="h-7 w-7"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -250,6 +427,7 @@ export function MessageInput({
             size="icon" 
             className="rounded-full flex-shrink-0"
             onClick={handleFileSelect}
+            disabled={isRecording}
           >
             <Paperclip className="h-5 w-5" />
             <input
@@ -267,14 +445,15 @@ export function MessageInput({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="pr-10 bg-background/80 border-muted"
-              disabled={!!attachment}
+              disabled={!!attachment || isRecording || !!audioBlob}
             />
-            {!message.trim() && !attachment && (
+            {!message.trim() && !attachment && !isRecording && !audioBlob && (
               <Button 
                 type="button" 
                 variant="ghost" 
                 size="icon" 
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full h-8 w-8 flex-shrink-0"
+                onClick={startRecording}
               >
                 <Mic className="h-5 w-5" />
               </Button>
@@ -282,11 +461,12 @@ export function MessageInput({
           </div>
           
           <Button 
-            type="submit" 
+            type={isRecording ? "button" : "submit"}
             size="icon" 
-            disabled={!message.trim() && !attachment} 
-            variant={(message.trim() || attachment) ? "default" : "ghost"}
+            disabled={!message.trim() && !attachment && !audioBlob && !isRecording} 
+            variant={(message.trim() || attachment || audioBlob || isRecording) ? "default" : "ghost"}
             className="rounded-full transition-all duration-200 flex-shrink-0"
+            onClick={isRecording ? stopRecording : undefined}
           >
             <Send className="h-5 w-5" />
           </Button>
