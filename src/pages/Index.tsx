@@ -18,7 +18,7 @@ const Index = () => {
     availableUsers 
   } = useMessaging();
   const { currentUser } = useAuth();
-  const { stories, isLoadingStories } = useStory();
+  const { stories } = useStory();
   
   useEffect(() => {
     // Initialize database
@@ -37,13 +37,7 @@ const Index = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <div className="w-full md:w-1/3 border-r border-border flex flex-col h-full overflow-hidden">
-        {isLoadingStories ? (
-          <div className="h-24 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">Loading stories...</p>
-          </div>
-        ) : (
-          <StoriesRow stories={stories} currentUserId={currentUser?.id || ''} />
-        )}
+        <StoriesRow />
         
         {isLoadingConversations ? (
           <div className="flex-1 flex items-center justify-center">
@@ -63,8 +57,7 @@ const Index = () => {
       <div className="hidden md:block md:w-2/3 h-full">
         {activeConversation ? (
           <ChatView 
-            conversation={activeConversation} 
-            currentUserId={currentUser?.id || ''} 
+            conversation={activeConversation}
           />
         ) : (
           <EmptyState />

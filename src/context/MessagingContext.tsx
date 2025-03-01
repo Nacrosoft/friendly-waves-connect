@@ -44,7 +44,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsLoadingConversations(true);
     try {
       const allConversations = await getAllConversations();
-      setConversations(allConversations);
+      const activeConversations = allConversations.filter(conv => conv.messages.length > 0);
+      setConversations(activeConversations);
     } catch (error) {
       console.error('Failed to load conversations:', error);
       toast({
@@ -62,9 +63,20 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const users = await getAllUsers();
       
       if (currentUser) {
-        setAvailableUsers(users.filter(user => user.id !== currentUser.id));
+        const filteredUsers = users.filter(user => user.id !== currentUser.id);
+        
+        const conversationUserIds = conversations
+          .flatMap(conv => conv.participants)
+          .filter(p => p.id !== currentUser.id)
+          .map(p => p.id);
+        
+        const availableContacts = filteredUsers.filter(
+          user => !conversationUserIds.includes(user.id)
+        );
+        
+        setAvailableUsers(availableContacts);
       } else {
-        setAvailableUsers(users);
+        setAvailableUsers([]);
       }
     } catch (error) {
       console.error('Failed to load users:', error);
@@ -74,12 +86,15 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         variant: 'destructive'
       });
     }
-  }, [currentUser, toast]);
+  }, [currentUser, conversations, toast]);
 
   useEffect(() => {
     loadConversations();
+  }, [loadConversations]);
+
+  useEffect(() => {
     loadAllUsers();
-  }, [loadConversations, loadAllUsers]);
+  }, [loadAllUsers, conversations]);
 
   const selectConversation = (conversationId: string) => {
     setActiveConversationId(conversationId);
