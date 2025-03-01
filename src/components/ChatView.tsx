@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
