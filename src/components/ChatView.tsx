@@ -48,7 +48,7 @@ export function ChatView({ conversation }: ChatViewProps) {
         // Create new message with attachment
         const newMessage: Message = {
           id: `msg-${Date.now()}`,
-          senderId: currentUser.id,
+          senderId: currentUser?.id || '',
           text: '', // Empty text for attachment-only messages
           timestamp: new Date(),
           read: false,
