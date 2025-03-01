@@ -6,15 +6,25 @@ import { Button } from '@/components/ui/button';
 import { MessageSquare } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { AuthFormWrapper } from '@/components/AuthFormWrapper';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const { isAuthenticated, isLoading } = useAuth();
+  const { toast } = useToast();
   
   // Redirect to home if already authenticated
   if (isAuthenticated && !isLoading) {
     return <Navigate to="/" />;
   }
+
+  const handleQuickAccess = () => {
+    toast({
+      title: "Quick Access",
+      description: "Quick access feature is not implemented yet",
+    });
+  };
   
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
@@ -47,7 +57,12 @@ const Auth = () => {
             </Button>
           </div>
           
-          {isLogin ? <LoginForm /> : <RegisterForm />}
+          <AuthFormWrapper 
+            buttonText={isLogin ? "Quick Login" : "Quick Register"} 
+            onButtonClick={handleQuickAccess}
+          >
+            {isLogin ? <LoginForm /> : <RegisterForm />}
+          </AuthFormWrapper>
         </div>
       </div>
     </div>
