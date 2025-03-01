@@ -43,6 +43,11 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 240 5.9% 90%;
     --sidebar-ring: 240 5.9% 50%;
+    
+    /* WhatsApp style colors */
+    --whatsapp-green: 142 70% 49%;
+    --whatsapp-light-green: 142 69% 58%;
+    --whatsapp-dark-bg: 0 0% 11%;
   }
 
   .dark {
@@ -82,6 +87,11 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 240 4.9% 83.9%;
+    
+    /* WhatsApp style colors */
+    --whatsapp-green: 142 70% 49%;
+    --whatsapp-light-green: 142 69% 58%;
+    --whatsapp-dark-bg: 0 0% 11%;
   }
 }
 
@@ -151,5 +161,37 @@
   
   .message-bubble-received {
     @apply bg-secondary text-secondary-foreground rounded-tl-none mr-auto;
+  }
+  
+  /* Mobile navigation bar */
+  .mobile-nav-bar {
+    @apply fixed bottom-0 left-0 right-0 bg-background border-t border-border flex justify-around items-center p-2 sm:hidden z-50;
+  }
+  
+  .mobile-nav-item {
+    @apply flex flex-col items-center justify-center p-2 rounded-full transition-colors;
+  }
+  
+  .mobile-nav-item.active {
+    @apply text-[hsl(var(--whatsapp-green))];
+  }
+  
+  .mobile-nav-item:hover {
+    @apply bg-secondary/50;
+  }
+  
+  .mobile-nav-icon {
+    @apply h-6 w-6;
+  }
+  
+  .mobile-nav-label {
+    @apply text-xs mt-1 font-medium;
+  }
+}
+
+/* Adjust main content for mobile to account for bottom nav bar */
+@media (max-width: 640px) {
+  .main-content-mobile {
+    padding-bottom: 70px;
   }
 }

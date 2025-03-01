@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -11,9 +12,10 @@ import { StoryCircle } from './story/StoryCircle';
 
 interface ChatViewProps {
   conversation: any;
+  onBackClick?: () => void; // Added for mobile back button
 }
 
-export function ChatView({ conversation }: ChatViewProps) {
+export function ChatView({ conversation, onBackClick }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -261,7 +263,7 @@ export function ChatView({ conversation }: ChatViewProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <ChatHeader user={otherUser} />
+      <ChatHeader user={otherUser} onBackClick={onBackClick} />
       
       <div
         ref={messagesContainerRef}

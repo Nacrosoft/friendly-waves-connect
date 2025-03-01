@@ -1,105 +1,59 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User } from '@/types/chat';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone, Video, BadgeCheck } from 'lucide-react';
+import React from 'react';
+import { UserAvatar } from '@/components/UserAvatar';
+import { Phone, Video, Info, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CallModal } from '@/components/CallModal';
-import { useToast } from '@/hooks/use-toast';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 interface ChatHeaderProps {
-  user: User;
+  user: any;
+  onBackClick?: () => void; // Added for mobile back button
 }
 
-export function ChatHeader({ user }: ChatHeaderProps) {
-  const navigate = useNavigate();
-  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
-  const [callType, setCallType] = useState<'voice' | 'video' | null>(null);
-  const [isIncomingCall, setIsIncomingCall] = useState(false);
-  const { toast } = useToast();
+export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
+  const isMobile = useMediaQuery("(max-width: 640px)");
   
-  const handleUserClick = () => {
-    navigate(`/user/${user.id}`);
-  };
+  if (!user) return null;
   
-  const isVerifiedUser = user?.id === 'user-meetefy';
-
-  const initiateCall = (type: 'voice' | 'video') => {
-    if (!user) return;
-    
-    setCallType(type);
-    setIsIncomingCall(false);
-    setIsCallModalOpen(true);
-  };
+  const isOnline = user.status === 'online';
   
   return (
-    <div className="border-b border-border p-4 flex items-center justify-between bg-card/50 backdrop-blur-md glass-effect z-10 animate-fade-in">
-      <div 
-        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={handleUserClick}
-      >
-        <Avatar className="h-10 w-10 border border-border">
-          <AvatarImage src={user?.avatar} alt={user?.name || 'User'} />
-          <AvatarFallback>{user?.name?.substring(0, 2) || 'U'}</AvatarFallback>
-        </Avatar>
+    <div className="p-3 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        {isMobile && onBackClick && (
+          <Button variant="ghost" size="icon" onClick={onBackClick} className="mr-1">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
+        
+        <UserAvatar user={user} />
+        
         <div className="flex flex-col">
-          <div className="flex items-center gap-1">
-            <h2 className="font-medium">{user?.name || 'User'}</h2>
-            {isVerifiedUser && (
-              <BadgeCheck className="h-4 w-4 text-blue-500" />
+          <span className="font-medium">{user.name || 'Unknown User'}</span>
+          <span className="text-xs text-muted-foreground">
+            {isOnline ? (
+              <span className="flex items-center">
+                <span className="h-2 w-2 bg-green-500 rounded-full mr-1"></span>
+                Online
+              </span>
+            ) : (
+              user.lastSeen ? `Last seen ${new Date(user.lastSeen).toLocaleString()}` : 'Offline'
             )}
-          </div>
-          <div className="flex items-center gap-1">
-            <span 
-              className={`h-2 w-2 rounded-full ${
-                user?.status === 'online' 
-                  ? 'bg-green-500' 
-                  : user?.status === 'away' 
-                  ? 'bg-yellow-500' 
-                  : 'bg-gray-400'
-              }`} 
-            />
-            <span className="text-xs text-muted-foreground">
-              {user?.status === 'online' 
-                ? 'Online' 
-                : user?.status === 'away' 
-                ? 'Away' 
-                : `Last seen ${new Date(user?.lastSeen || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-              }
-            </span>
-          </div>
+          </span>
         </div>
       </div>
+      
       <div className="flex items-center gap-1">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="rounded-full h-9 w-9"
-          onClick={() => initiateCall('voice')}
-        >
-          <Phone className="h-4 w-4" />
+        <Button variant="ghost" size="icon">
+          <Phone className="h-5 w-5" />
         </Button>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="rounded-full h-9 w-9"
-          onClick={() => initiateCall('video')}
-        >
-          <Video className="h-4 w-4" />
+        <Button variant="ghost" size="icon">
+          <Video className="h-5 w-5" />
+        </Button>
+        <Button variant="ghost" size="icon">
+          <Info className="h-5 w-5" />
         </Button>
       </div>
-      
-      {isCallModalOpen && user && (
-        <CallModal
-          isOpen={isCallModalOpen}
-          onClose={() => setIsCallModalOpen(false)}
-          user={user}
-          callType={callType}
-          isIncoming={isIncomingCall}
-          blogPostUrl="https://www.meetefy.com/blog/3"
-        />
-      )}
     </div>
   );
 }
