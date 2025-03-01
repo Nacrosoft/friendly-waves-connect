@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Conversation, Message, Reaction, User } from '@/types/chat';
 import { 
@@ -8,7 +7,8 @@ import {
   addMessageToConversation, 
   markConversationAsRead,
   addReactionToMessage,
-  saveConversation
+  saveConversation,
+  getUser
 } from '@/utils/database';
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +34,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { toast } = useToast();
   const { currentUser, isAuthenticated } = useAuth();
 
-  // Initialize database
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -57,7 +56,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     initialize();
   }, [toast]);
 
-  // Load conversations when user is authenticated
   useEffect(() => {
     const loadConversations = async () => {
       if (!isAuthenticated || !currentUser || !isDbInitialized) return;
@@ -65,7 +63,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsLoading(true);
       try {
         const allConversations = await getAllConversations();
-        // Filter conversations for current user
         const userConversations = allConversations.filter(conv => 
           conv.participants.some(p => p.id === currentUser.id)
         );
@@ -85,7 +82,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     loadConversations();
   }, [currentUser, isAuthenticated, isDbInitialized, toast]);
 
-  // Select conversation by ID
   const selectConversation = async (conversationId: string) => {
     if (!currentUser) return;
     
@@ -94,13 +90,11 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const conversation = await getConversation(conversationId);
       
       if (conversation) {
-        // Mark conversation as read
         const updatedConversation = await markConversationAsRead(conversationId);
         
         if (updatedConversation) {
           setSelectedConversation(updatedConversation);
           
-          // Update conversations list with read status
           setConversations(prevConversations => 
             prevConversations.map(conv => 
               conv.id === conversationId ? updatedConversation : conv
@@ -120,7 +114,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // Send a message
   const sendMessage = async (text: string) => {
     if (!selectedConversation || !currentUser) return;
     
@@ -142,7 +135,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (updatedConversation) {
         setSelectedConversation(updatedConversation);
         
-        // Update conversation in list
         setConversations(prevConversations => 
           prevConversations.map(conv => 
             conv.id === selectedConversation.id ? updatedConversation : conv
@@ -159,7 +151,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // Add a reaction to a message
   const addReaction = async (messageId: string, emoji: string) => {
     if (!selectedConversation || !currentUser) return;
     
@@ -178,7 +169,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (updatedConversation) {
         setSelectedConversation(updatedConversation);
         
-        // Update conversation in list
         setConversations(prevConversations => 
           prevConversations.map(conv => 
             conv.id === selectedConversation.id ? updatedConversation : conv
@@ -195,24 +185,20 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // Start a new conversation with another user
   const startNewConversation = async (userId: string) => {
     if (!currentUser) return;
     
     try {
-      // Check if conversation already exists
       const existingConv = conversations.find(conv => 
         conv.participants.some(p => p.id === userId) && 
         conv.participants.some(p => p.id === currentUser.id)
       );
       
       if (existingConv) {
-        // If conversation exists, select it
         selectConversation(existingConv.id);
         return;
       }
       
-      // Get the other user (would need to be implemented in database.ts)
       const otherUser = await getUser(userId);
       
       if (!otherUser) {
@@ -224,7 +210,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
       
-      // Create new conversation
       const newConversation: Conversation = {
         id: `conversation-${Date.now()}`,
         participants: [currentUser, otherUser],
@@ -236,10 +221,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       const savedConversation = await saveConversation(newConversation);
       
-      // Add to conversations list
       setConversations(prev => [...prev, savedConversation]);
       
-      // Select the new conversation
       setSelectedConversation(savedConversation);
       
     } catch (error) {
@@ -249,6 +232,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: 'Could not start a new conversation.',
         variant: 'destructive'
       });
+      throw error;
     }
   };
 
@@ -276,14 +260,3 @@ export const useMessaging = () => {
   }
   return context;
 };
-
-// Helper function to get user - this would need to be implemented in the database.ts file
-async function getUser(userId: string): Promise<User | null> {
-  try {
-    // This should use the database.getUser function
-    return null; // Placeholder, will be replaced by actual implementation
-  } catch (error) {
-    console.error('Error getting user:', error);
-    return null;
-  }
-}
