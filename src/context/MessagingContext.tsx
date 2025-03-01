@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
+import { Conversation, Message, Reaction, User, CustomEmoji, Call } from '@/types/chat';
 import { 
   initDatabase, 
   getAllConversations, 
@@ -13,7 +13,10 @@ import {
   getCustomEmojisForUser,
   deleteCustomEmoji,
   editMessageInConversation,
-  deleteMessageInConversation
+  deleteMessageInConversation,
+  saveCall,
+  updateCall,
+  getActiveCalls
 } from '@/utils/database';
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +36,12 @@ interface MessagingContextType {
   deleteUserEmoji: (emojiId: string) => Promise<boolean>;
   editMessage: (messageId: string, newText: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
+  initiateCall: (recipientId: string, isVideo: boolean) => Promise<Call>;
+  acceptCall: (callId: string) => Promise<Call>;
+  declineCall: (callId: string) => Promise<void>;
+  endCall: (callId: string) => Promise<void>;
+  incomingCall: Call | null;
+  activeCall: Call | null;
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -42,6 +51,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLoading, setIsLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [incomingCall, setIncomingCall] = useState<Call | null>(null);
+  const [activeCall, setActiveCall] = useState<Call | null>(null);
   const { toast } = useToast();
   const { currentUser, isAuthenticated } = useAuth();
 
@@ -71,6 +82,89 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!isAuthenticated || !currentUser) return;
 
     const channel = supabase
+      .channel('public:calls')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'calls' 
+        }, 
+        async (payload) => {
+          console.log('Real-time call update received:', payload);
+          
+          const callData = payload.new as Record<string, any> | null;
+          if (!callData || typeof callData !== 'object') {
+            console.log('Invalid call payload received:', payload);
+            return;
+          }
+          
+          if (callData.recipient_id === currentUser.id && callData.status === 'pending') {
+            const caller = await getUser(callData.caller_id);
+            if (caller) {
+              const newCall: Call = {
+                id: callData.id,
+                callerId: callData.caller_id,
+                caller: caller,
+                recipientId: callData.recipient_id,
+                recipient: currentUser,
+                status: callData.status,
+                startTime: new Date(callData.start_time),
+                endTime: callData.end_time ? new Date(callData.end_time) : undefined,
+                isVideo: callData.is_video
+              };
+              
+              setIncomingCall(newCall);
+              
+              const audio = new Audio('/call-ringtone.mp3');
+              audio.loop = true;
+              audio.play().catch(e => console.error('Error playing ringtone:', e));
+              
+              (window as any).callRingtone = audio;
+            }
+          } else if (callData.status === 'active' && 
+                    (callData.caller_id === currentUser.id || callData.recipient_id === currentUser.id)) {
+            const caller = await getUser(callData.caller_id);
+            const recipient = await getUser(callData.recipient_id);
+            
+            if (caller && recipient) {
+              const updatedCall: Call = {
+                id: callData.id,
+                callerId: callData.caller_id,
+                caller: caller,
+                recipientId: callData.recipient_id,
+                recipient: recipient,
+                status: callData.status,
+                startTime: new Date(callData.start_time),
+                endTime: callData.end_time ? new Date(callData.end_time) : undefined,
+                isVideo: callData.is_video
+              };
+              
+              setActiveCall(updatedCall);
+              setIncomingCall(null);
+              
+              if ((window as any).callRingtone) {
+                (window as any).callRingtone.pause();
+                (window as any).callRingtone = null;
+              }
+            }
+          } else if (callData.status === 'ended' || callData.status === 'declined') {
+            if (incomingCall && incomingCall.id === callData.id) {
+              setIncomingCall(null);
+            }
+            if (activeCall && activeCall.id === callData.id) {
+              setActiveCall(null);
+            }
+            
+            if ((window as any).callRingtone) {
+              (window as any).callRingtone.pause();
+              (window as any).callRingtone = null;
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    const messagesChannel = supabase
       .channel('public:messages')
       .on('postgres_changes', 
         { 
@@ -109,38 +203,68 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       )
       .subscribe();
 
-    console.log('Subscribed to real-time messages channel');
-
-    return () => {
-      supabase.removeChannel(channel);
-      console.log('Unsubscribed from real-time messages channel');
-    };
-  }, [currentUser, isAuthenticated, selectedConversation]);
-
-  useEffect(() => {
-    const loadConversations = async () => {
-      if (!isAuthenticated || !currentUser || !isDbInitialized) return;
+    const checkPendingCalls = async () => {
+      const activeCalls = await getActiveCalls(currentUser.id);
+      console.log('Active calls for current user:', activeCalls);
       
-      setIsLoading(true);
-      try {
-        const allConversations = await getAllConversations();
-        const userConversations = allConversations.filter(conv => 
-          conv.participants.some(p => p.id === currentUser.id)
-        );
-        setConversations(userConversations);
-      } catch (error) {
-        console.error('Error loading conversations:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not load your conversations.',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoading(false);
+      const pendingCall = activeCalls.find(call => 
+        call.recipientId === currentUser.id && call.status === 'pending'
+      );
+      
+      if (pendingCall) {
+        setIncomingCall(pendingCall);
+        
+        const audio = new Audio('/call-ringtone.mp3');
+        audio.loop = true;
+        audio.play().catch(e => console.error('Error playing ringtone:', e));
+        
+        (window as any).callRingtone = audio;
+      }
+      
+      const activeCallData = activeCalls.find(call => 
+        (call.callerId === currentUser.id || call.recipientId === currentUser.id) && 
+        call.status === 'active'
+      );
+      
+      if (activeCallData) {
+        setActiveCall(activeCallData);
       }
     };
     
-    loadConversations();
+    checkPendingCalls();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      console.log('Unsubscribed from real-time channels');
+      
+      if ((window as any).callRingtone) {
+        (window as any).callRingtone.pause();
+        (window as any).callRingtone = null;
+      }
+    };
+  }, [currentUser, isAuthenticated, selectedConversation, incomingCall, activeCall]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || !isDbInitialized) return;
+    
+    setIsLoading(true);
+    try {
+      const allConversations = await getAllConversations();
+      const userConversations = allConversations.filter(conv => 
+        conv.participants.some(p => p.id === currentUser.id)
+      );
+      setConversations(userConversations);
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not load your conversations.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentUser, isAuthenticated, isDbInitialized, toast]);
 
   const selectConversation = async (conversationId: string) => {
@@ -454,6 +578,139 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const initiateCall = async (recipientId: string, isVideo: boolean): Promise<Call> => {
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    const recipient = await getUser(recipientId);
+    if (!recipient) {
+      throw new Error('Recipient not found');
+    }
+    
+    const newCall: Call = {
+      id: `call-${Date.now()}`,
+      callerId: currentUser.id,
+      caller: currentUser,
+      recipientId: recipient.id,
+      recipient: recipient,
+      status: 'pending',
+      startTime: new Date(),
+      isVideo
+    };
+    
+    try {
+      const savedCall = await saveCall(newCall);
+      
+      setActiveCall(savedCall);
+      
+      toast({
+        title: 'Calling...',
+        description: `Calling ${recipient.name}`,
+      });
+      
+      return savedCall;
+    } catch (error) {
+      console.error('Error initiating call:', error);
+      toast({
+        title: 'Call Failed',
+        description: 'Could not initiate the call. Please try again.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+  
+  const acceptCall = async (callId: string): Promise<Call> => {
+    if (!currentUser || !incomingCall) {
+      throw new Error('No incoming call to accept');
+    }
+    
+    try {
+      const updatedCall: Call = {
+        ...incomingCall,
+        status: 'active'
+      };
+      
+      const savedCall = await updateCall(updatedCall);
+      
+      setActiveCall(savedCall);
+      setIncomingCall(null);
+      
+      if ((window as any).callRingtone) {
+        (window as any).callRingtone.pause();
+        (window as any).callRingtone = null;
+      }
+      
+      return savedCall;
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      toast({
+        title: 'Call Error',
+        description: 'Could not accept the call. Please try again.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+  
+  const declineCall = async (callId: string): Promise<void> => {
+    if (!incomingCall) {
+      return;
+    }
+    
+    try {
+      const updatedCall: Call = {
+        ...incomingCall,
+        status: 'declined',
+        endTime: new Date()
+      };
+      
+      await updateCall(updatedCall);
+      
+      setIncomingCall(null);
+      
+      if ((window as any).callRingtone) {
+        (window as any).callRingtone.pause();
+        (window as any).callRingtone = null;
+      }
+    } catch (error) {
+      console.error('Error declining call:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not decline the call.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+  
+  const endCall = async (callId: string): Promise<void> => {
+    if (!activeCall) {
+      return;
+    }
+    
+    try {
+      const updatedCall: Call = {
+        ...activeCall,
+        status: 'ended',
+        endTime: new Date()
+      };
+      
+      await updateCall(updatedCall);
+      
+      setActiveCall(null);
+    } catch (error) {
+      console.error('Error ending call:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not end the call.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
   return (
     <MessagingContext.Provider
       value={{
@@ -468,7 +725,13 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveCustomEmoji: saveUserEmoji,
         deleteUserEmoji,
         editMessage,
-        deleteMessage
+        deleteMessage,
+        initiateCall,
+        acceptCall,
+        declineCall,
+        endCall,
+        incomingCall,
+        activeCall
       }}
     >
       {children}

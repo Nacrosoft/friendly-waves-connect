@@ -1,4 +1,3 @@
-
 -- Users Table
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
@@ -57,8 +56,24 @@ CREATE TABLE custom_emojis (
   url TEXT NOT NULL
 );
 
+-- Calls Table
+CREATE TABLE calls (
+  id TEXT PRIMARY KEY,
+  caller_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  recipient_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  end_time TIMESTAMP WITH TIME ZONE,
+  is_video BOOLEAN DEFAULT FALSE
+);
+
 -- Add indexes for performance
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_reactions_message_id ON reactions(message_id);
 CREATE INDEX idx_custom_emojis_user_id ON custom_emojis(user_id);
 CREATE INDEX idx_conversations_last_message_time ON conversations(last_message_time DESC);
+
+-- Add indexes for calls
+CREATE INDEX idx_calls_caller_id ON calls(caller_id);
+CREATE INDEX idx_calls_recipient_id ON calls(recipient_id);
+CREATE INDEX idx_calls_status ON calls(status);

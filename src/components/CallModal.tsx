@@ -1,407 +1,250 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { User } from '@/types/chat';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React, { useEffect, useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Check, X } from 'lucide-react';
+import { UserAvatar } from '@/components/UserAvatar';
+import { Call } from '@/types/chat';
+import { useMessaging } from '@/context/MessagingContext';
+import { Phone, Video, MicOff, VideoOff, X, PhoneOff } from 'lucide-react';
 
 interface CallModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  user: User;
-  callType: 'voice' | 'video' | null;
-  isIncoming?: boolean;
-  blogPostUrl?: string;
+  incomingCall?: Call | null;
+  activeCall?: Call | null;
+  onAccept?: (callId: string) => void;
+  onDecline?: (callId: string) => void;
+  onEnd?: (callId: string) => void;
 }
 
 export function CallModal({ 
-  isOpen, 
-  onClose, 
-  user, 
-  callType, 
-  isIncoming = false, 
-  blogPostUrl = "https://www.meetefy.com/blog/3" 
+  incomingCall, 
+  activeCall, 
+  onAccept, 
+  onDecline, 
+  onEnd 
 }: CallModalProps) {
-  const [isCallConnected, setIsCallConnected] = useState(false);
-  const [isCallAccepted, setIsCallAccepted] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [isRinging, setIsRinging] = useState(isIncoming);
-  const { toast } = useToast();
-  const timerRef = useRef<number | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const ringAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [callTimer, setCallTimer] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timer | null>(null);
   
-  // Create ring audio element
+  // If we're using the context directly
+  const { 
+    incomingCall: contextIncomingCall, 
+    activeCall: contextActiveCall,
+    acceptCall: contextAcceptCall,
+    declineCall: contextDeclineCall,
+    endCall: contextEndCall  
+  } = useMessaging();
+  
+  // Use either props or context values
+  const call = incomingCall || activeCall || contextIncomingCall || contextActiveCall;
+  
+  // Set isOpen whenever we have a call
   useEffect(() => {
-    if (isIncoming && isRinging) {
-      // Create audio element for ringing sound
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
-      audio.loop = true;
-      audio.play().catch(err => console.error("Could not play ringtone:", err));
-      ringAudioRef.current = audio;
+    if (call) {
+      setIsOpen(true);
       
-      return () => {
-        if (ringAudioRef.current) {
-          ringAudioRef.current.pause();
-          ringAudioRef.current = null;
-        }
-      };
-    }
-  }, [isIncoming, isRinging]);
-  
-  // Auto-close call if not accepted after 30 seconds
-  useEffect(() => {
-    let ringTimeout: number | null = null;
-    
-    if (isIncoming && isRinging) {
-      ringTimeout = window.setTimeout(() => {
-        if (!isCallAccepted) {
-          toast({
-            title: "Missed call",
-            description: `You missed a ${callType} call from ${user.name}.`,
-          });
-          onClose();
-        }
-      }, 30000); // 30 seconds timeout
+      // If it's an active call, start the timer
+      if (call.status === 'active') {
+        const interval = setInterval(() => {
+          setCallTimer(prev => prev + 1);
+        }, 1000);
+        
+        setTimerInterval(interval);
+      }
+    } else {
+      setIsOpen(false);
+      setCallTimer(0);
+      
+      // Clear the timer if it exists
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
     }
     
     return () => {
-      if (ringTimeout) clearTimeout(ringTimeout);
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
     };
-  }, [isIncoming, isRinging, isCallAccepted, callType, user.name, toast, onClose]);
+  }, [call, timerInterval]);
   
-  // Simulate call connecting for outgoing calls
-  useEffect(() => {
-    if (isOpen && !isIncoming && !isCallConnected && isCallAccepted) {
-      // Simulate call connection after 2 seconds
-      const timer = setTimeout(() => {
-        setIsCallConnected(true);
-        toast({
-          title: "Call connected",
-          description: `${callType === 'voice' ? 'Voice' : 'Video'} call with ${user.name} is now connected.`,
-        });
-        
-        // Start call duration timer
-        startCallTimer();
-      }, 2000);
-      
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-  }, [isOpen, isIncoming, isCallConnected, isCallAccepted, callType, user.name, toast]);
-  
-  // Handle call timer
-  const startCallTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    
-    timerRef.current = window.setInterval(() => {
-      setCallDuration(prev => prev + 1);
-    }, 1000);
-  };
-  
-  // Format call duration as mm:ss
-  const formatDuration = (seconds: number) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  // Clean up timer on component unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+  const handleAccept = () => {
+    if (call) {
+      if (onAccept) {
+        onAccept(call.id);
+      } else if (contextAcceptCall) {
+        contextAcceptCall(call.id);
       }
-      if (ringAudioRef.current) {
-        ringAudioRef.current.pause();
-        ringAudioRef.current = null;
-      }
-    };
-  }, []);
-  
-  // Handle accepting a call
-  const handleAcceptCall = () => {
-    // Stop ringing sound
-    if (ringAudioRef.current) {
-      ringAudioRef.current.pause();
-      ringAudioRef.current = null;
-    }
-    
-    setIsRinging(false);
-    setIsCallAccepted(true);
-    
-    if (callType === 'video') {
-      // Simulate accessing camera for video calls
-      const simulateVideoStream = async () => {
-        try {
-          // For demo purposes, we'll just simulate it
-          setIsCallConnected(true);
-          startCallTimer();
-          
-          toast({
-            title: "Call accepted",
-            description: `You've joined a ${callType} call with ${user.name}.`,
-          });
-        } catch (error) {
-          console.error('Error accessing media devices:', error);
-          toast({
-            title: "Camera access denied",
-            description: "Could not access camera for video call.",
-            variant: "destructive"
-          });
-          onClose();
-        }
-      };
-      
-      simulateVideoStream();
-    } else {
-      // For voice calls, just connect immediately
-      setIsCallConnected(true);
-      startCallTimer();
-      
-      toast({
-        title: "Call accepted",
-        description: `You've joined a voice call with ${user.name}.`,
-      });
     }
   };
   
-  // Handle declining a call
-  const handleDeclineCall = () => {
-    // Stop ringing sound
-    if (ringAudioRef.current) {
-      ringAudioRef.current.pause();
-      ringAudioRef.current = null;
+  const handleDecline = () => {
+    if (call) {
+      if (onDecline) {
+        onDecline(call.id);
+      } else if (contextDeclineCall) {
+        contextDeclineCall(call.id);
+      }
     }
-    
-    toast({
-      title: "Call declined",
-      description: `You declined a ${callType} call from ${user.name}.`,
-    });
-    
-    onClose();
   };
   
-  // Simulate accessing camera when video call is initiated
-  useEffect(() => {
-    if (isOpen && callType === 'video' && !isIncoming && localVideoRef.current) {
-      // Simulate video streams with placeholder
-      const simulateVideoStream = async () => {
-        try {
-          // In a real implementation, you would use:
-          // const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          // localVideoRef.current.srcObject = stream;
-          
-          // For demo purposes, we'll just show a placeholder
-          setIsCallAccepted(true);
-        } catch (error) {
-          console.error('Error accessing media devices:', error);
-          toast({
-            title: "Camera access denied",
-            description: "Could not access camera for video call.",
-            variant: "destructive"
-          });
-          onClose();
-        }
-      };
-      
-      simulateVideoStream();
+  const handleEnd = () => {
+    if (call) {
+      if (onEnd) {
+        onEnd(call.id);
+      } else if (contextEndCall) {
+        contextEndCall(call.id);
+      }
     }
-  }, [isOpen, callType, isIncoming, toast, onClose]);
-  
-  const handleEndCall = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    
-    toast({
-      title: "Call ended",
-      description: `Call with ${user.name} has ended. Duration: ${formatDuration(callDuration)}.`,
-    });
-    
-    onClose();
   };
   
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    toast({
-      title: isMuted ? "Unmuted" : "Muted",
-      description: isMuted ? "Your microphone is now active." : "Your microphone has been muted.",
-    });
   };
   
   const toggleVideo = () => {
     setIsVideoOff(!isVideoOff);
-    toast({
-      title: isVideoOff ? "Video enabled" : "Video disabled",
-      description: isVideoOff ? "Your camera is now active." : "Your camera has been turned off.",
-    });
   };
-
+  
+  if (!call) return null;
+  
+  // Determine who to show in the UI (for caller, show recipient; for recipient, show caller)
+  const otherUser = call.callerId === (contextIncomingCall?.recipientId || contextActiveCall?.recipientId) 
+    ? call.recipient 
+    : call.caller;
+    
+  const isIncoming = call.status === 'pending' && call.recipientId === (contextIncomingCall?.recipientId || contextActiveCall?.recipientId);
+  
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {isRinging
-              ? `Incoming ${callType === 'voice' ? 'Voice' : 'Video'} Call`
-              : isCallConnected
-                ? `${callType === 'voice' ? 'Voice' : 'Video'} Call with ${user.name}`
-                : `Calling ${user.name}...`}
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex flex-col items-center justify-center py-6 space-y-6">
-          {/* Avatar and call status */}
-          <div className="text-center">
-            <Avatar className={`h-24 w-24 mx-auto mb-4 border-2 ${isRinging ? 'animate-pulse border-primary' : 'border-primary'}`}>
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="text-3xl">{user.name.substring(0, 2)}</AvatarFallback>
-            </Avatar>
-            
-            {isCallConnected && (
-              <div className="mt-2 text-xl">
-                {formatDuration(callDuration)}
-              </div>
-            )}
-            
-            {!isCallConnected && !isRinging && (
-              <div className="animate-pulse text-muted-foreground">
-                Connecting...
-              </div>
-            )}
-            
-            {isRinging && (
-              <div className="text-lg font-medium mb-2">
-                {user.name} is calling you...
-              </div>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <div className={`flex flex-col items-center justify-between h-96 p-6 ${call.isVideo ? 'bg-black' : 'bg-gradient-to-b from-primary/20 to-primary/5'}`}>
+          <div className="w-full flex justify-between items-center">
+            <span className="text-sm font-medium">
+              {call.status === 'active'
+                ? 'On call'
+                : isIncoming 
+                  ? 'Incoming call'
+                  : 'Calling...'}
+            </span>
+            {call.status === 'active' && (
+              <span className="text-sm font-medium">{formatTime(callTimer)}</span>
             )}
           </div>
           
-          {/* Video elements for video calls */}
-          {callType === 'video' && isCallAccepted && !isRinging && (
-            <div className="w-full relative rounded-lg overflow-hidden bg-black aspect-video">
-              {/* Remote video (full-size) */}
-              <div className={`w-full h-full ${isVideoOff ? 'bg-gray-800' : ''}`}>
-                {!isVideoOff && (
-                  <video
-                    ref={remoteVideoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                  >
-                    Your browser doesn't support video calls.
-                  </video>
-                )}
-                
-                {/* Show avatar if video is off */}
-                {isVideoOff && (
-                  <div className="flex items-center justify-center w-full h-full">
-                    <Avatar className="h-20 w-20">
-                      <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
-                    </Avatar>
+          <div className="flex flex-col items-center justify-center flex-1 gap-4">
+            {call.isVideo && call.status === 'active' ? (
+              <div className="relative w-full h-full bg-black/30 rounded-lg flex items-center justify-center">
+                {!isVideoOff ? (
+                  <div className="w-full h-full flex items-center justify-center text-center text-white/50">
+                    <p>Video stream would appear here</p>
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <UserAvatar 
+                      user={otherUser} 
+                      className="w-24 h-24" 
+                    />
                   </div>
                 )}
+                <div className="absolute bottom-4 right-4 w-24 h-36 bg-black/40 rounded-lg flex items-center justify-center">
+                  <p className="text-xs text-white/50">Your camera</p>
+                </div>
               </div>
-              
-              {/* Local video (picture-in-picture) */}
-              <div className="absolute bottom-4 right-4 w-1/3 aspect-video rounded overflow-hidden border-2 border-background shadow-lg">
-                <video
-                  ref={localVideoRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                  muted
-                >
-                  Your browser doesn't support video calls.
-                </video>
-              </div>
-            </div>
-          )}
-          
-          {/* Call controls */}
-          <div className="flex items-center justify-center gap-4 mt-4">
-            {/* For incoming calls - accept/decline buttons */}
-            {isRinging && (
+            ) : (
               <>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="rounded-full h-14 w-14"
-                  onClick={handleDeclineCall}
-                >
-                  <X className="h-7 w-7" />
-                </Button>
-                <Button
-                  variant="default"
-                  size="icon"
-                  className="rounded-full h-14 w-14 bg-green-500 hover:bg-green-600"
-                  onClick={handleAcceptCall}
-                >
-                  <Check className="h-7 w-7" />
-                </Button>
-              </>
-            )}
-            
-            {/* For connected calls - normal controls */}
-            {isCallAccepted && !isRinging && (
-              <>
-                {/* Toggle microphone */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full h-12 w-12"
-                  onClick={toggleMute}
-                >
-                  {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-                </Button>
-                
-                {/* End call button */}
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="rounded-full h-14 w-14"
-                  onClick={handleEndCall}
-                >
-                  <PhoneOff className="h-7 w-7" />
-                </Button>
-                
-                {/* Toggle video if it's a video call */}
-                {callType === 'video' && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full h-12 w-12"
-                    onClick={toggleVideo}
-                  >
-                    {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
-                  </Button>
-                )}
+                <UserAvatar 
+                  user={otherUser} 
+                  className="w-24 h-24" 
+                />
+                <h3 className="text-xl font-semibold">{otherUser.name}</h3>
+                <p className="text-muted-foreground">
+                  {call.status === 'active'
+                    ? 'On call'
+                    : isIncoming 
+                      ? 'Incoming call'
+                      : 'Calling...'}
+                </p>
               </>
             )}
           </div>
           
-          {/* Blog post link */}
-          <div className="text-center text-sm">
-            <a 
-              href={blogPostUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              Read about our calling features on our blog
-            </a>
+          <div className="flex gap-4 justify-center mt-4">
+            {call.status === 'pending' ? (
+              isIncoming ? (
+                <>
+                  <Button 
+                    variant="destructive" 
+                    size="icon" 
+                    className="rounded-full h-12 w-12"
+                    onClick={handleDecline}
+                  >
+                    <X className="h-6 w-6" />
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="icon" 
+                    className="rounded-full h-12 w-12 bg-green-500 hover:bg-green-600"
+                    onClick={handleAccept}
+                  >
+                    {call.isVideo ? (
+                      <Video className="h-6 w-6" />
+                    ) : (
+                      <Phone className="h-6 w-6" />
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="rounded-full h-12 w-12"
+                  onClick={handleDecline}
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+              )
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className={`rounded-full h-10 w-10 ${isMuted ? 'bg-red-500 text-white hover:bg-red-600 hover:text-white' : ''}`}
+                  onClick={toggleMute}
+                >
+                  {isMuted ? <MicOff className="h-5 w-5" /> : <span className="i-lucide-mic h-5 w-5"></span>}
+                </Button>
+                
+                {call.isVideo && (
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className={`rounded-full h-10 w-10 ${isVideoOff ? 'bg-red-500 text-white hover:bg-red-600 hover:text-white' : ''}`}
+                    onClick={toggleVideo}
+                  >
+                    {isVideoOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+                  </Button>
+                )}
+                
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="rounded-full h-12 w-12"
+                  onClick={handleEnd}
+                >
+                  <PhoneOff className="h-6 w-6" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>

@@ -1,4 +1,4 @@
-import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
+import { Conversation, Message, Reaction, User, CustomEmoji, Call } from '@/types/chat';
 import {
   saveUserToSupabase,
   getUserFromSupabase,
@@ -109,4 +109,93 @@ export const deleteMessageInConversation = async (
 
 export const updateUser = async (user: User): Promise<User> => {
   return await updateUserInSupabase(user);
+};
+
+export const saveCall = async (call: Call): Promise<Call> => {
+  try {
+    const { data, error } = await supabase
+      .from('calls')
+      .insert({
+        id: call.id,
+        caller_id: call.callerId,
+        recipient_id: call.recipientId,
+        status: call.status,
+        start_time: call.startTime.toISOString(),
+        end_time: call.endTime ? call.endTime.toISOString() : null,
+        is_video: call.isVideo
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    console.log('Call saved successfully:', data);
+    return call;
+  } catch (error) {
+    console.error('Error saving call:', error);
+    throw error;
+  }
+};
+
+export const updateCall = async (call: Call): Promise<Call> => {
+  try {
+    const { data, error } = await supabase
+      .from('calls')
+      .update({
+        status: call.status,
+        end_time: call.endTime ? call.endTime.toISOString() : null
+      })
+      .eq('id', call.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    console.log('Call updated successfully:', data);
+    return call;
+  } catch (error) {
+    console.error('Error updating call:', error);
+    throw error;
+  }
+};
+
+export const getActiveCalls = async (userId: string): Promise<Call[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('calls')
+      .select('*')
+      .or(`caller_id.eq.${userId},recipient_id.eq.${userId}`)
+      .in('status', ['pending', 'active'])
+      .order('start_time', { ascending: false });
+
+    if (error) throw error;
+    
+    if (!data || data.length === 0) return [];
+    
+    const calls: Call[] = [];
+    
+    for (const callData of data) {
+      const caller = await getUser(callData.caller_id);
+      const recipient = await getUser(callData.recipient_id);
+      
+      if (caller && recipient) {
+        calls.push({
+          id: callData.id,
+          callerId: callData.caller_id,
+          caller,
+          recipientId: callData.recipient_id,
+          recipient,
+          status: callData.status,
+          startTime: new Date(callData.start_time),
+          endTime: callData.end_time ? new Date(callData.end_time) : undefined,
+          isVideo: callData.is_video
+        });
+      }
+    }
+    
+    return calls;
+  } catch (error) {
+    console.error('Error getting active calls:', error);
+    throw error;
+  }
 };

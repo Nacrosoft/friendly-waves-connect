@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -59,4 +58,16 @@ export interface Conversation {
   lastMessageText: string;
   lastMessageTime: Date;
   unreadCount: number;
+}
+
+export interface Call {
+  id: string;
+  callerId: string;
+  caller: User;
+  recipientId: string;
+  recipient: User;
+  status: 'pending' | 'active' | 'ended' | 'declined';
+  startTime: Date;
+  endTime?: Date;
+  isVideo: boolean;
 }

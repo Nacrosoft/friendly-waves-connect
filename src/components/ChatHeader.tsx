@@ -5,6 +5,7 @@ import { Phone, Video, Info, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { User } from '@/types/chat';
+import { useMessaging } from '@/context/MessagingContext';
 
 interface ChatHeaderProps {
   user: User;
@@ -13,10 +14,19 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
   const isMobile = useMediaQuery("(max-width: 640px)");
+  const { initiateCall } = useMessaging();
   
   if (!user) return null;
   
   const isOnline = user.status === 'online';
+
+  const handleVoiceCall = () => {
+    initiateCall(user.id, false);
+  };
+
+  const handleVideoCall = () => {
+    initiateCall(user.id, true);
+  };
   
   return (
     <div className="p-3 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between">
@@ -45,10 +55,10 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       </div>
       
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={handleVoiceCall}>
           <Phone className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={handleVideoCall}>
           <Video className="h-5 w-5" />
         </Button>
         <Button variant="ghost" size="icon">

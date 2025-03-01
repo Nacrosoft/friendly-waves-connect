@@ -1,89 +1,50 @@
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { MessagingProvider } from '@/context/MessagingContext';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Chat from '@/pages/Chat';
+import { Toaster } from '@/components/ui/toaster';
+import { CallModal } from '@/components/CallModal';
+import { useMessaging } from '@/context/MessagingContext';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Settings from "./pages/Settings";
-import UserProfile from "./pages/UserProfile";
-import NotFound from "./pages/NotFound";
-import { MessagingProvider } from "./context/MessagingContext";
-import { AuthProvider } from "./context/AuthContext";
-import { StoryProvider } from "./context/StoryContext";
-import { useAuth } from "./context/AuthContext";
-import { StoryViewer } from "./components/story/StoryViewer";
-import { StoryCreator } from "./components/story/StoryCreator";
-
-const queryClient = new QueryClient();
-
-// Protected route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+function App() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { incomingCall, activeCall } = useMessaging();
   
   if (isLoading) {
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+    return <div>Loading...</div>;
   }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" />;
-  }
-  
-  return <>{children}</>;
-};
 
-const AppRoutes = () => {
+  const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+    return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  };
+
   return (
-    <Routes>
-      <Route path="/auth" element={<Auth />} />
-      <Route 
-        path="/" 
-        element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings" 
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/user/:userId" 
-        element={
-          <ProtectedRoute>
-            <UserProfile />
-          </ProtectedRoute>
-        } 
-      />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <Router>
+        <Routes>
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/chat" /> : <Login />} />
+          <Route path="/register" element={isAuthenticated ? <Navigate to="/chat" /> : <Register />} />
+          <Route
+            path="/chat"
+            element={
+              <PrivateRoute>
+                <Chat />
+              </PrivateRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/chat" />} />
+        </Routes>
+      </Router>
+      
+      {/* Add CallModal at the root level */}
+      <CallModal incomingCall={incomingCall} activeCall={activeCall} />
+      
+      <Toaster />
+    </>
   );
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <TooltipProvider>
-        <AuthProvider>
-          <MessagingProvider>
-            <StoryProvider>
-              <Toaster />
-              <Sonner />
-              <StoryViewer />
-              <StoryCreator />
-              <AppRoutes />
-            </StoryProvider>
-          </MessagingProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+}
 
 export default App;
