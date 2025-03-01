@@ -1,24 +1,25 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { MessagingProvider } from '@/context/MessagingContext';
+import { useAuth } from '@/context/AuthContext';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Chat from '@/pages/Chat';
+import Status from '@/pages/Status';
 import { Toaster } from '@/components/ui/toaster';
 import { CallModal } from '@/components/CallModal';
 import { useMessaging } from '@/context/MessagingContext';
+import { MobileNavBar } from '@/components/MobileNavBar';
 
-function AppContent() {
+function App() {
   const { isAuthenticated, isLoading } = useAuth();
   const { incomingCall, activeCall } = useMessaging();
-  
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
-  const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const PrivateRoute = ({ children }) => {
     return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
   };
 
@@ -36,25 +37,24 @@ function AppContent() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/status"
+            element={
+              <PrivateRoute>
+                <Status />
+              </PrivateRoute>
+            }
+          />
           <Route path="/" element={<Navigate to="/chat" />} />
         </Routes>
+        
+        {isAuthenticated && <MobileNavBar />}
       </Router>
-      
-      {/* Add CallModal at the root level */}
+
       <CallModal incomingCall={incomingCall} activeCall={activeCall} />
       
       <Toaster />
     </>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <MessagingProvider>
-        <AppContent />
-      </MessagingProvider>
-    </AuthProvider>
   );
 }
 

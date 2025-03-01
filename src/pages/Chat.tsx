@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChatView } from '@/components/ChatView';
 import { ChatList } from '@/components/ChatList';
-import { StoriesRow } from '@/components/story/StoriesRow';
 import { StoryProvider } from '@/context/StoryContext';
 import { useAuth } from '@/context/AuthContext';
 import { useMessaging } from '@/context/MessagingContext';
@@ -37,7 +36,6 @@ const Chat = () => {
         <div className={`${
           showMobileChat && isMobile ? 'hidden' : 'w-full'
         } md:w-1/3 lg:w-1/4 border-r border-border h-full overflow-hidden flex flex-col`}>
-          <StoriesRow />
           <ChatList 
             conversations={conversations}
             selectedConversationId={selectedConversation?.id || null}
