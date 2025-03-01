@@ -2,9 +2,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, User, Settings, Camera } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export function MobileNavBar() {
   const location = useLocation();
+  const { currentUser } = useAuth();
   const isActive = (path: string) => location.pathname === path;
   
   return (
@@ -40,9 +42,9 @@ export function MobileNavBar() {
       </Link>
       
       <Link 
-        to="/profile" 
+        to={currentUser ? `/user/${currentUser.id}` : "/"}
         className={`flex flex-col items-center justify-center w-16 h-full ${
-          isActive('/profile') ? 'text-primary' : 'text-muted-foreground'
+          location.pathname.startsWith('/user/') ? 'text-primary' : 'text-muted-foreground'
         }`}
       >
         <User className="h-5 w-5" />
