@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, LogOut, Save } from 'lucide-react';
+import { ArrowLeft, LogOut, Save, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AvatarMaker from '@/components/AvatarMaker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMessaging } from '@/context/MessagingContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -16,6 +18,10 @@ const Settings = () => {
   const { toast } = useToast();
   const [username, setUsername] = useState(currentUser?.name || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { createNewConversation } = useMessaging();
+  const [showAddUserDialog, setShowAddUserDialog] = useState(false);
+  const { allUsers } = useMessaging();
 
   const handleBack = () => {
     navigate(-1);
@@ -30,17 +36,17 @@ const Settings = () => {
     });
   };
 
-  const handleProfileUpdate = async (newAvatarUrl: string) => {
+  const handleProfileUpdate = async (updatedUser) => {
     if (!currentUser) return;
     
     setIsUpdating(true);
     try {
-      const updatedUser = { 
+      const userToUpdate = { 
         ...currentUser, 
-        avatar: newAvatarUrl
+        avatar: updatedUser
       };
       
-      await updateUser(updatedUser);
+      await updateUser(userToUpdate);
       
       toast({
         title: 'Profile Updated',
@@ -85,6 +91,37 @@ const Settings = () => {
       setIsUpdating(false);
     }
   };
+
+  const handleAddUser = async (userId) => {
+    if (!currentUser) return;
+    
+    try {
+      const selectedUser = allUsers.find(user => user.id === userId);
+      if (selectedUser) {
+        await createNewConversation([currentUser, selectedUser]);
+        
+        toast({
+          title: 'User Added',
+          description: `${selectedUser.name} has been added to your conversations.`,
+        });
+        
+        setShowAddUserDialog(false);
+        navigate('/chat');
+      }
+    } catch (error) {
+      console.error('Error adding user:', error);
+      toast({
+        title: 'Failed to Add User',
+        description: 'An error occurred while adding the user. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const filteredUsers = allUsers?.filter(user => 
+    user.id !== currentUser?.id && 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   if (!currentUser) {
     return (
@@ -156,6 +193,55 @@ const Settings = () => {
           </div>
 
           <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Contacts</h2>
+              <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Add Person
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Contact</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="mt-2"
+                    />
+                    <div className="max-h-60 overflow-y-auto">
+                      {filteredUsers.length > 0 ? (
+                        filteredUsers.map(user => (
+                          <div 
+                            key={user.id} 
+                            className="flex items-center p-2 hover:bg-muted rounded-md cursor-pointer mb-2"
+                            onClick={() => handleAddUser(user.id)}
+                          >
+                            <Avatar className="h-8 w-8 mr-2">
+                              <AvatarImage src={user.avatar} alt={user.name} />
+                              <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+                            </Avatar>
+                            <span>{user.name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-muted-foreground">No users found</p>
+                      )}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
             <h2 className="text-xl font-semibold mb-4">Account</h2>
             <Button 
               variant="destructive" 
@@ -173,3 +259,4 @@ const Settings = () => {
 };
 
 export default Settings;
+
