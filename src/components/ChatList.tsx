@@ -20,9 +20,16 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
   // Sort conversations by last message time whenever conversations change
   useEffect(() => {
     const sorted = [...conversations].sort((a, b) => {
-      return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+      // Ensure we're comparing valid date objects
+      const dateA = new Date(b.lastMessageTime);
+      const dateB = new Date(a.lastMessageTime);
+      return dateA.getTime() - dateB.getTime();
     });
     setSortedConversations(sorted);
+    
+    // Debug
+    console.log("Conversations updated:", conversations);
+    console.log("Sorted conversations:", sorted);
   }, [conversations]);
   
   const handleUserClick = (event: React.MouseEvent, userId: string) => {
