@@ -1,111 +1,76 @@
-
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatList } from '@/components/ChatList';
 import { ChatView } from '@/components/ChatView';
 import { EmptyState } from '@/components/EmptyState';
+import { AddUserDialog } from '@/components/AddUserDialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserAvatar } from '@/components/UserAvatar';
 import { useMessaging } from '@/context/MessagingContext';
-import { useAuth } from '@/context/AuthContext';
-import { initDatabase } from '@/utils/database';
-import { StoriesRow } from '@/components/story/StoriesRow';
-import { useStory } from '@/context/StoryContext';
-import { Settings, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { MessagesSquare } from 'lucide-react';
+
+// Import the StoriesRow component
+import { StoriesRow } from "@/components/story/StoriesRow";
 
 const Index = () => {
-  const { 
-    conversations, 
-    activeConversationId, 
-    selectConversation, 
-    isLoadingConversations,
-    availableUsers 
-  } = useMessaging();
-  const { currentUser, logout } = useAuth();
-  const { stories } = useStory();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const messagingContext = useMessaging();
+  const { conversations, selectedConversation, selectConversation } = messagingContext;
+
   useEffect(() => {
-    // Initialize database
-    const init = async () => {
-      await initDatabase();
-    };
-    
-    init();
-  }, []);
-  
-  const handleLogout = () => {
-    logout();
-    navigate('/auth');
-    toast({
-      title: 'Logged out',
-      description: 'You have been logged out successfully',
-    });
+    if (conversations.length > 0 && !selectedConversationId) {
+      // Select the first conversation by default
+      handleConversationSelect(conversations[0].id);
+    }
+  }, [conversations, selectedConversationId]);
+
+  const handleConversationSelect = (conversationId: string) => {
+    setSelectedConversationId(conversationId);
+    selectConversation(conversationId);
   };
 
-  const handleGoToSettings = () => {
-    navigate('/settings');
-  };
-  
-  // Find the active conversation
-  const activeConversation = conversations.find(
-    conv => conv.id === activeConversationId
-  );
-  
-  return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <div className="w-full md:w-1/3 border-r border-border flex flex-col h-full overflow-hidden">
-        <div className="p-3 border-b border-border flex justify-between items-center">
-          <h1 className="text-lg font-semibold">Messages</h1>
-          <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleGoToSettings}
-              title="Settings"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleLogout}
-              title="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+return (
+  <div className="flex h-screen overflow-hidden">
+    <main className="flex-1 overflow-hidden">
+      <div className="grid lg:grid-cols-[320px_1fr] h-full">
+        <div className="border-r border-border h-full flex flex-col">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h1 className="font-semibold text-xl">Meetefy</h1>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <UserAvatar />
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <ChatList 
+              conversations={conversations}
+              selectedConversationId={selectedConversation?.id}
+              onSelectConversation={handleConversationSelect}
+            />
+          </div>
+          <div className="p-3 border-t border-border">
+            <AddUserDialog />
           </div>
         </div>
-        
-        <StoriesRow />
-        
-        {isLoadingConversations ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">Loading conversations...</p>
-          </div>
-        ) : (
-          <ChatList
-            conversations={conversations}
-            availableUsers={availableUsers}
-            selectedConversationId={activeConversationId}
-            onSelectConversation={selectConversation}
-            currentUserId={currentUser?.id || ''}
-          />
-        )}
+        <div className="flex flex-col h-full">
+          {selectedConversation ? (
+            <ChatView conversation={selectedConversation} />
+          ) : (
+            <div className="flex-1 flex flex-col overflow-auto p-4">
+              {/* Add StoriesRow here */}
+              <StoriesRow />
+              
+              <EmptyState 
+                icon={<MessagesSquare className="h-12 w-12 text-muted-foreground" />}
+                title="No conversation selected"
+                description="Select a conversation from the sidebar or start a new one"
+              />
+            </div>
+          )}
+        </div>
       </div>
-      
-      <div className="hidden md:block md:w-2/3 h-full">
-        {activeConversation ? (
-          <ChatView 
-            conversation={activeConversation}
-          />
-        ) : (
-          <EmptyState />
-        )}
-      </div>
-    </div>
-  );
+    </main>
+  </div>
+);
 };
 
 export default Index;

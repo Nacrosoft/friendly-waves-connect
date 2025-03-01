@@ -54,8 +54,7 @@ export function ChatView({ conversation }: ChatViewProps) {
       return;
     }
     
-    // We're passing 'text' as type here, not the replyToMessage.id
-    messagingContext.sendMessage(text);
+    messagingContext.sendMessage(text, replyToMessage?.id);
     setReplyToMessage(null);
     scrollToBottom();
   };
@@ -91,7 +90,7 @@ export function ChatView({ conversation }: ChatViewProps) {
           replyToId: replyToMessage?.id // Include reply info if replying
         };
         
-        // Use the new function to send attachment message
+        // Custom function to add attachment message
         messagingContext.sendAttachmentMessage(newMessage);
         setReplyToMessage(null);
         scrollToBottom();
@@ -138,7 +137,7 @@ export function ChatView({ conversation }: ChatViewProps) {
           replyToId: replyToMessage?.id // Include reply info if replying
         };
         
-        // Use the new function to send voice message
+        // Send the voice message
         messagingContext.sendAttachmentMessage(newMessage);
         setReplyToMessage(null);
         scrollToBottom();

@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 export const RegisterForm = () => {
-  const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,7 +15,7 @@ export const RegisterForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !username || !password) {
+    if (!username || !password) {
       toast({
         title: 'Missing information',
         description: 'Please enter all required fields',
@@ -34,7 +33,7 @@ export const RegisterForm = () => {
       return;
     }
     
-    const success = await register(name, username, password);
+    const success = await register(username, password);
     
     if (success) {
       toast({
@@ -52,21 +51,6 @@ export const RegisterForm = () => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
-      <div className="space-y-2">
-        <label htmlFor="name" className="text-sm font-medium">
-          Name
-        </label>
-        <Input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter your name"
-          disabled={isLoading}
-          className="w-full"
-        />
-      </div>
-      
       <div className="space-y-2">
         <label htmlFor="reg-username" className="text-sm font-medium">
           Username

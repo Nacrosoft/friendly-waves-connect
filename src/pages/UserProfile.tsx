@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUser } from '@/utils/database';
 import { User } from '@/types/chat';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mail, Settings, UserIcon, LogOut } from 'lucide-react';
+import { ArrowLeft, Mail, Settings, UserIcon } from 'lucide-react';
 import { useMessaging } from '@/context/MessagingContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +17,7 @@ const UserProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { startNewConversation } = useMessaging();
   const { toast } = useToast();
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -65,15 +66,6 @@ const UserProfile = () => {
     navigate('/settings');
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/auth');
-    toast({
-      title: 'Logged out',
-      description: 'You have been logged out successfully',
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -86,27 +78,16 @@ const UserProfile = () => {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <header className="border-b border-border p-4">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleBack}
-                className="mr-2"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-semibold">User Profile</h1>
-            </div>
-            
+          <div className="container mx-auto flex items-center">
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={handleLogout}
-              title="Logout"
+              onClick={handleBack}
+              className="mr-2"
             >
-              <LogOut className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
+            <h1 className="text-xl font-semibold">User Profile</h1>
           </div>
         </header>
         
@@ -121,32 +102,22 @@ const UserProfile = () => {
     );
   }
 
+  // Don't show message button on your own profile
   const isOwnProfile = currentUser?.id === user.id;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="border-b border-border p-4">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleBack}
-              className="mr-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-semibold">User Profile</h1>
-          </div>
-          
+        <div className="container mx-auto flex items-center">
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={handleLogout}
-            title="Logout"
+            onClick={handleBack}
+            className="mr-2"
           >
-            <LogOut className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
+          <h1 className="text-xl font-semibold">User Profile</h1>
         </div>
       </header>
 

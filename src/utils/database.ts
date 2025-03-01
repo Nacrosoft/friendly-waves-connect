@@ -1,4 +1,3 @@
-
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 

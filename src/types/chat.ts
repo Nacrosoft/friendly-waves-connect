@@ -2,7 +2,6 @@
 export interface User {
   id: string;
   name: string;
-  username: string; // Added username field
   avatar?: string;
   status?: 'online' | 'offline' | 'away';
   lastSeen?: Date;

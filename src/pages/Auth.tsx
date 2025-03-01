@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { LoginForm } from '@/components/LoginForm';
 import { RegisterForm } from '@/components/RegisterForm';
 import { Button } from '@/components/ui/button';
-import { LogOut, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { AuthFormWrapper } from '@/components/AuthFormWrapper';
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   
   // Redirect to home if already authenticated
@@ -23,14 +23,6 @@ const Auth = () => {
     toast({
       title: "Quick Access",
       description: "Quick access feature is not implemented yet",
-    });
-  };
-
-  const handleLogout = () => {
-    logout();
-    toast({
-      title: "Logged Out",
-      description: "You've been successfully logged out.",
     });
   };
   
@@ -71,19 +63,6 @@ const Auth = () => {
           >
             {isLogin ? <LoginForm /> : <RegisterForm />}
           </AuthFormWrapper>
-          
-          {/* Add Logout button */}
-          <div className="mt-4 flex justify-end">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1"
-            >
-              <LogOut className="h-4 w-4" />
-              Force Logout
-            </Button>
-          </div>
         </div>
       </div>
     </div>

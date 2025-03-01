@@ -7,14 +7,11 @@ interface AuthContextType {
   allUsers: User[] | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   register: (name: string, username: string, password: string, avatar?: string) => Promise<boolean>;
   logout: () => void;
   updateUserStatus: (status: 'online' | 'offline' | 'away') => Promise<void>;
-  updateUser: (user: User) => Promise<void>;
-  updateCurrentUser: (user: User) => Promise<void>;
-  clearAllUserData: () => Promise<void>;
+  updateUser: (user: User) => Promise<void>; // Added to support story updates
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,31 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const clearAllUserData = async (): Promise<void> => {
-    try {
-      localStorage.removeItem('users');
-      localStorage.removeItem('loggedInUser');
-      
-      setCurrentUser(null);
-      setAllUsers([]);
-      
-      toast({
-        title: 'Database Cleared',
-        description: 'All user data has been removed from the database.',
-      });
-    } catch (error) {
-      console.error('Failed to clear user data:', error);
-      setError('Failed to clear user data');
-      toast({
-        title: 'Error',
-        description: 'Failed to clear user data.',
-        variant: 'destructive'
-      });
-    }
-  };
 
   useEffect(() => {
     const loadUsers = () => {
@@ -57,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const users: User[] = usersStr ? JSON.parse(usersStr) : [];
         setAllUsers(users);
         
+        // Check for a logged-in user
         const loggedInUsername = localStorage.getItem('loggedInUser');
         if (loggedInUsername) {
           const user = users.find(u => u.username === loggedInUsername);
@@ -66,7 +40,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Failed to load users:', error);
-        setError('Failed to load user data');
         toast({
           title: 'Error',
           description: 'Failed to load user data.',
@@ -82,7 +55,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    setError(null);
     try {
       const usersStr = localStorage.getItem('users');
       const users: User[] = usersStr ? JSON.parse(usersStr) : [];
@@ -98,7 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         return true;
       } else {
-        setError('Invalid username or password');
         toast({
           title: 'Login Failed',
           description: 'Invalid username or password.',
@@ -108,7 +79,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('Failed to log in. Please try again.');
       toast({
         title: 'Login Error',
         description: 'Failed to log in. Please try again.',
@@ -122,13 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, username: string, password: string, avatar?: string): Promise<boolean> => {
     setIsLoading(true);
-    setError(null);
     try {
       const usersStr = localStorage.getItem('users');
       let users: User[] = usersStr ? JSON.parse(usersStr) : [];
       
       if (users.some(u => u.username === username)) {
-        setError('Username already exists');
         toast({
           title: 'Registration Failed',
           description: 'Username already exists.',
@@ -161,7 +129,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } catch (error) {
       console.error('Registration error:', error);
-      setError('Failed to register. Please try again.');
       toast({
         title: 'Registration Error',
         description: 'Failed to register. Please try again.',
@@ -189,6 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const updatedUser = { ...currentUser, status, lastSeen: new Date() };
       
+      // Update user in local storage
       const usersStr = localStorage.getItem('users');
       let users: User[] = usersStr ? JSON.parse(usersStr) : [];
       
@@ -204,7 +172,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error) {
       console.error('Status update error:', error);
-      setError('Failed to update status');
       toast({
         title: 'Status Update Error',
         description: 'Failed to update status. Please try again.',
@@ -215,61 +182,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUser = async (user: User): Promise<void> => {
-    try {
-      await updateUserInDatabase(user);
-      
-      if (allUsers) {
-        const updatedAllUsers = allUsers.map(u => 
-          u.id === user.id ? user : u
-        );
-        setAllUsers(updatedAllUsers);
-      }
-      
-      if (currentUser && currentUser.id === user.id) {
-        setCurrentUser(user);
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      setError('Failed to update user');
-      throw error;
-    }
-  };
-
-  const updateCurrentUser = async (user: User): Promise<void> => {
-    if (!currentUser) return;
-    
-    try {
-      const updatedUser = { ...currentUser, ...user };
-      await updateUser(updatedUser);
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been updated successfully.',
-      });
-    } catch (error) {
-      console.error('Error updating current user:', error);
-      setError('Failed to update profile');
-      toast({
-        title: 'Update Failed',
-        description: 'Failed to update your profile. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-
+  // Add the updateUser method to the context value
   const value: AuthContextType = {
     currentUser,
     allUsers,
     isAuthenticated: !!currentUser,
     isLoading,
-    error,
     login,
     register,
     logout,
     updateUserStatus,
-    updateUser,
-    updateCurrentUser,
-    clearAllUserData
+    updateUser: async (user: User) => {
+      try {
+        // Update user in the database
+        const updatedUser = await updateUserInDatabase(user);
+        
+        // Update the current user if it's the same user
+        if (currentUser && currentUser.id === user.id) {
+          setCurrentUser(updatedUser);
+        }
+        
+        // Update the user in the allUsers array
+        if (allUsers) {
+          const updatedAllUsers = allUsers.map(u => 
+            u.id === user.id ? updatedUser : u
+          );
+          setAllUsers(updatedAllUsers);
+        }
+        
+        return updatedUser;
+      } catch (error) {
+        console.error('Error updating user:', error);
+        throw error;
+      }
+    }
   };
 
   return (
@@ -287,13 +233,17 @@ export const useAuth = () => {
   return context;
 };
 
+// Helper function to update a user in the database
 const updateUserInDatabase = async (user: User): Promise<User> => {
   try {
+    // Get all current users
     const usersStr = localStorage.getItem('users');
     let users: User[] = usersStr ? JSON.parse(usersStr) : [];
     
+    // Update the user
     users = users.map(u => u.id === user.id ? user : u);
     
+    // Save back to localStorage
     localStorage.setItem('users', JSON.stringify(users));
     
     return user;
