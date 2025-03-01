@@ -18,9 +18,17 @@ interface CallModalProps {
   user: User;
   callType: 'voice' | 'video' | null;
   isIncoming?: boolean;
+  blogPostUrl?: string;
 }
 
-export function CallModal({ isOpen, onClose, user, callType, isIncoming = false }: CallModalProps) {
+export function CallModal({ 
+  isOpen, 
+  onClose, 
+  user, 
+  callType, 
+  isIncoming = false, 
+  blogPostUrl = "https://www.meetefy.com/blog/3" 
+}: CallModalProps) {
   const [isCallConnected, setIsCallConnected] = useState(false);
   const [isCallAccepted, setIsCallAccepted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -382,6 +390,18 @@ export function CallModal({ isOpen, onClose, user, callType, isIncoming = false 
                 )}
               </>
             )}
+          </div>
+          
+          {/* Blog post link */}
+          <div className="text-center text-sm">
+            <a 
+              href={blogPostUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Read about our calling features on our blog
+            </a>
           </div>
         </div>
       </DialogContent>
