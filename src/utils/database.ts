@@ -1,5 +1,4 @@
-
-import { Conversation, Message, User } from "@/types/chat";
+import { Conversation, Message, User, Reaction } from "@/types/chat";
 
 // Database configuration
 const DB_NAME = 'messengerDB';
