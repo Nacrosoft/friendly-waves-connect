@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +8,7 @@ import {
   Smile, 
   Palette, 
   Glasses, 
-  ShirtFolded, 
+  Shirt, 
   RefreshCw 
 } from 'lucide-react';
 import { User as UserType } from '@/types/chat';
@@ -23,10 +22,9 @@ const AVATAR_STYLES = [
   { id: 'personas', name: 'Personas', icon: <UserRound className="h-4 w-4" /> },
   { id: 'pixel-art', name: 'Pixel Art', icon: <Palette className="h-4 w-4" /> },
   { id: 'lorelei', name: 'Lorelei', icon: <Glasses className="h-4 w-4" /> },
-  { id: 'adventurer', name: 'Adventurer', icon: <ShirtFolded className="h-4 w-4" /> },
+  { id: 'adventurer', name: 'Adventurer', icon: <Shirt className="h-4 w-4" /> },
 ];
 
-// Options for each avatar style
 const AVATAR_OPTIONS: Record<string, string[]> = {
   'avataaars': ['accessories', 'beard', 'clothesColor', 'facialHair', 'hairColor', 'skinColor', 'top', 'clothesType'],
   'bottts': ['colors', 'colorful', 'primaryColorLevel', 'secondaryColorLevel', 'texture'],
@@ -47,23 +45,19 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
   const [options, setOptions] = useState<Record<string, any>>({});
   const { toast } = useToast();
 
-  // Generate random avatar options based on the selected style
   const generateRandomOptions = () => {
     const newOptions: Record<string, any> = {};
     setSeed(Math.random().toString(36).substring(2, 10));
     setOptions(newOptions);
   };
 
-  // Function to update a specific option
   const updateOption = (option: string, value: any) => {
     setOptions((prev) => ({ ...prev, [option]: value }));
   };
 
-  // Build avatar URL from current settings
   const buildAvatarUrl = () => {
     let url = `${AVATAR_BASE_URL}/${selectedStyle}/svg?seed=${seed}`;
     
-    // Add options as query parameters
     Object.entries(options).forEach(([key, value]) => {
       if (value !== undefined) {
         url += `&${key}=${encodeURIComponent(value.toString())}`;
@@ -73,7 +67,6 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
     return url;
   };
 
-  // Save the current avatar
   const saveAvatar = async () => {
     const avatarUrl = buildAvatarUrl();
     
@@ -95,9 +88,7 @@ const AvatarMaker: React.FC<AvatarMakerProps> = ({ user, onUpdate }) => {
     }
   };
 
-  // Render option controls based on the option type
   const renderOptionControl = (option: string) => {
-    // For now, all options use a slider
     return (
       <div key={option} className="space-y-2">
         <div className="flex justify-between">
