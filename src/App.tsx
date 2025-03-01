@@ -11,7 +11,10 @@ import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import { MessagingProvider } from "./context/MessagingContext";
 import { AuthProvider } from "./context/AuthContext";
+import { StoryProvider } from "./context/StoryContext";
 import { useAuth } from "./context/AuthContext";
+import { StoryViewer } from "./components/story/StoryViewer";
+import { StoryCreator } from "./components/story/StoryCreator";
 
 const queryClient = new QueryClient();
 
@@ -68,11 +71,15 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <MessagingProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <StoryProvider>
+            <Toaster />
+            <Sonner />
+            <StoryViewer />
+            <StoryCreator />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </StoryProvider>
         </MessagingProvider>
       </AuthProvider>
     </TooltipProvider>

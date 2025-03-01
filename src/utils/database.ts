@@ -289,3 +289,18 @@ export const deleteMessageInConversation = async (
     return null;
   }
 };
+
+export const updateUser = async (user: User): Promise<User> => {
+  try {
+    const db = await openDBInstance();
+    const tx = db.transaction('users', 'readwrite');
+    const store = tx.objectStore('users');
+    await store.put(user);
+    await tx.done;
+    
+    return user;
+  } catch (error) {
+    console.error('Failed to update user:', error);
+    throw error;
+  }
+};

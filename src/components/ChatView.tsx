@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -7,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Message } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle } from 'lucide-react';
+import { StoryCircle } from './story/StoryCircle';
 
 interface ChatViewProps {
   conversation: any;
@@ -234,15 +236,24 @@ export function ChatView({ conversation }: ChatViewProps) {
     return conversation.participants.find(user => user.id !== currentUser.id);
   };
 
+  const otherUser = getOtherUser();
+
   return (
     <div className="flex flex-col h-full">
       {/* Updated to pass the other user instead of the whole conversation */}
-      <ChatHeader user={getOtherUser()} />
+      <ChatHeader user={otherUser} />
       
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
+        {/* Display user's story at top if they have one */}
+        {otherUser && !isOfficialAccount && (
+          <div className="flex items-center justify-center mb-4">
+            <StoryCircle user={otherUser} size="sm" showName={false} />
+          </div>
+        )}
+        
         {isOfficialAccount && (
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-lg p-4 mb-4 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -260,6 +271,7 @@ export function ChatView({ conversation }: ChatViewProps) {
             </div>
           </div>
         )}
+        
         {renderMessages()}
       </div>
       

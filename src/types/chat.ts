@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -6,6 +7,7 @@ export interface User {
   lastSeen?: Date;
   password?: string; // Only used for demo purposes - in a real app, you'd never store plaintext passwords
   customEmojis?: CustomEmoji[]; // Added for custom emoji support
+  stories?: Story[]; // Added for story support
 }
 
 export interface CustomEmoji {
@@ -15,6 +17,17 @@ export interface CustomEmoji {
   type: 'image' | 'video';
   createdAt: Date;
   userId: string;
+}
+
+export interface Story {
+  id: string;
+  userId: string;
+  type: 'image' | 'video' | 'text';
+  content: string; // URL for image/video or text content
+  bgColor?: string; // For text stories
+  createdAt: Date;
+  expiresAt: Date; // Stories typically expire after 24 hours
+  viewers: string[]; // IDs of users who viewed the story
 }
 
 export interface Reaction {
