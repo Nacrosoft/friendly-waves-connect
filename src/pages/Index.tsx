@@ -1,71 +1,70 @@
 
 import React, { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-
-import { ChatList } from "@/components/ChatList";
-import { ChatView } from "@/components/ChatView";
-import { EmptyState } from "@/components/EmptyState";
-import { AddUserDialog } from "@/components/AddUserDialog";
-import { UserAvatar } from "@/components/UserAvatar";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { StoriesRow } from "@/components/story/StoriesRow";
-import { useMessaging } from "@/context/MessagingContext";
-import { useAuth } from "@/context/AuthContext";
+import { ChatList } from '@/components/ChatList';
+import { ChatView } from '@/components/ChatView';
+import { EmptyState } from '@/components/EmptyState';
+import { useMessaging } from '@/context/MessagingContext';
+import { useAuth } from '@/context/AuthContext';
+import { initDatabase } from '@/utils/database';
+import { StoriesRow } from '@/components/story/StoriesRow';
+import { useStory } from '@/context/StoryContext';
 
 const Index = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const newUser = searchParams.get("newUser");
-  const [isFirstLoad, setIsFirstLoad] = React.useState(true);
-
-  const { conversations, activeConversationId, selectConversation } = useMessaging();
+  const { 
+    conversations, 
+    activeConversationId, 
+    selectConversation, 
+    isLoadingConversations,
+    availableUsers 
+  } = useMessaging();
   const { currentUser } = useAuth();
-  const [showAddUserDialog, setShowAddUserDialog] = React.useState(false);
-
+  const { stories, isLoadingStories } = useStory();
+  
   useEffect(() => {
-    if (isFirstLoad) {
-      if (newUser === "true") {
-        setShowAddUserDialog(true);
-      }
-      setIsFirstLoad(false);
-    }
-  }, [newUser, isFirstLoad]);
-
-  const handleAddUser = (userId: string) => {
-    console.log("Adding user:", userId);
-    setShowAddUserDialog(false);
-    setSearchParams({});
-  };
-
+    // Initialize database
+    const init = async () => {
+      await initDatabase();
+    };
+    
+    init();
+  }, []);
+  
+  // Find the active conversation
+  const activeConversation = conversations.find(
+    conv => conv.id === activeConversationId
+  );
+  
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden md:flex w-72 flex-col border-r border-border">
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <h1 className="text-xl font-bold">Messages</h1>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <UserAvatar />
+      <div className="w-full md:w-1/3 border-r border-border flex flex-col h-full overflow-hidden">
+        {isLoadingStories ? (
+          <div className="h-24 flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Loading stories...</p>
           </div>
-        </div>
+        ) : (
+          <StoriesRow stories={stories} currentUserId={currentUser?.id || ''} />
+        )}
         
-        <StoriesRow />
-        
-        <ChatList 
-          conversations={conversations} 
-          selectedConversationId={activeConversationId} 
-          onSelectConversation={selectConversation}
-          currentUserId={currentUser?.id || ''}
-        />
-        
-        <AddUserDialog 
-          open={showAddUserDialog} 
-          onOpenChange={setShowAddUserDialog} 
-          onAddUser={handleAddUser}
-        />
+        {isLoadingConversations ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Loading conversations...</p>
+          </div>
+        ) : (
+          <ChatList
+            conversations={conversations}
+            availableUsers={availableUsers}
+            selectedConversationId={activeConversationId}
+            onSelectConversation={selectConversation}
+            currentUserId={currentUser?.id || ''}
+          />
+        )}
       </div>
-      <div className="flex flex-col flex-1">
-        {activeConversationId ? (
+      
+      <div className="hidden md:block md:w-2/3 h-full">
+        {activeConversation ? (
           <ChatView 
-            conversation={conversations.find(c => c.id === activeConversationId)}
+            conversation={activeConversation} 
+            currentUserId={currentUser?.id || ''} 
           />
         ) : (
           <EmptyState />

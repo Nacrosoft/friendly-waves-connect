@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { Conversation, Message, User, Reaction } from '@/types/chat';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,11 +11,13 @@ import {
   addReactionToMessage,
   getUser,
   deleteMessageInConversation,
-  editMessageInConversation
+  editMessageInConversation,
+  getAllUsers
 } from '@/utils/database';
 
 interface MessagingContextType {
   conversations: Conversation[];
+  availableUsers: User[];
   activeConversationId: string | null;
   isLoadingConversations: boolean;
   selectConversation: (conversationId: string) => void;
@@ -33,6 +34,7 @@ const MessagingContext = createContext<MessagingContextType | undefined>(undefin
 
 export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const { currentUser } = useAuth();
@@ -55,9 +57,29 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [toast]);
 
+  const loadAllUsers = useCallback(async () => {
+    try {
+      const users = await getAllUsers();
+      
+      if (currentUser) {
+        setAvailableUsers(users.filter(user => user.id !== currentUser.id));
+      } else {
+        setAvailableUsers(users);
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load available contacts.',
+        variant: 'destructive'
+      });
+    }
+  }, [currentUser, toast]);
+
   useEffect(() => {
     loadConversations();
-  }, [loadConversations]);
+    loadAllUsers();
+  }, [loadConversations, loadAllUsers]);
 
   const selectConversation = (conversationId: string) => {
     setActiveConversationId(conversationId);
@@ -78,31 +100,48 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     await addMessageToConversation(activeConversationId, message);
-    loadConversations(); // Refresh conversations after sending a message
+    loadConversations();
   };
 
-  // New function to send attachment messages (image, video, file, voice)
   const sendAttachmentMessage = async (message: Message) => {
     if (!activeConversationId || !currentUser) return;
     
-    // Make sure the sender ID is correctly set
     message.senderId = currentUser.id;
     
-    // If the message doesn't have an ID, generate one
     if (!message.id) {
       message.id = uuidv4();
     }
     
     await addMessageToConversation(activeConversationId, message);
-    loadConversations(); // Refresh conversations after sending a message
+    loadConversations();
   };
 
   const startNewConversation = async (userId: string) => {
     if (!currentUser) return;
 
+    const existingConversation = conversations.find(conversation => 
+      conversation.participants.some(p => p.id === userId) && 
+      conversation.participants.some(p => p.id === currentUser.id)
+    );
+
+    if (existingConversation) {
+      selectConversation(existingConversation.id);
+      return;
+    }
+
+    const user = await getUser(userId);
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'User not found.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     const newConversation: Conversation = {
       id: uuidv4(),
-      participants: [currentUser, { id: userId } as User],
+      participants: [currentUser, user],
       messages: [],
       lastMessageText: '',
       lastMessageTime: new Date(),
@@ -110,12 +149,13 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     await saveConversation(newConversation);
-    loadConversations(); // Refresh conversations after starting a new conversation
+    await loadConversations();
+    selectConversation(newConversation.id);
   };
 
   const markAsRead = async (conversationId: string) => {
     await markConversationAsRead(conversationId);
-    loadConversations(); // Refresh conversations after marking as read
+    loadConversations();
   };
 
   const addReaction = async (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
@@ -129,25 +169,26 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     await addReactionToMessage(activeConversationId, messageId, reaction);
-    loadConversations(); // Refresh conversations after adding a reaction
+    loadConversations();
   };
 
   const deleteMessage = async (messageId: string) => {
     if (!activeConversationId) return;
 
     await deleteMessageInConversation(activeConversationId, messageId);
-    loadConversations(); // Refresh conversations after deleting a message
+    loadConversations();
   };
 
   const editMessage = async (messageId: string, newText: string) => {
     if (!activeConversationId) return;
 
     await editMessageInConversation(activeConversationId, messageId, newText);
-    loadConversations(); // Refresh conversations after editing a message
+    loadConversations();
   };
 
   const value: MessagingContextType = {
     conversations,
+    availableUsers,
     activeConversationId,
     isLoadingConversations,
     selectConversation,
