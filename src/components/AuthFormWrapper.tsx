@@ -4,14 +4,16 @@ import { Button } from '@/components/ui/button';
 
 interface AuthFormWrapperProps {
   children: ReactNode;
-  buttonText: string;
-  onButtonClick: () => void;
+  type?: 'login' | 'register'; // Add type prop
+  buttonText?: string;
+  onButtonClick?: () => void;
 }
 
 export const AuthFormWrapper = ({ 
   children, 
-  buttonText, 
-  onButtonClick 
+  type = 'login',
+  buttonText = type === 'login' ? 'Login' : 'Register',
+  onButtonClick = () => {}
 }: AuthFormWrapperProps) => {
   return (
     <div className="space-y-4">
