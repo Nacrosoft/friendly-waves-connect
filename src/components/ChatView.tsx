@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -27,7 +26,6 @@ export function ChatView({ conversation }: ChatViewProps) {
     if (conversation) {
       setMessages(conversation.messages);
       
-      // Check if this is a conversation with the official Meetefy account
       const otherUser = getOtherUser();
       if (otherUser?.id === 'user-meetefy') {
         setIsOfficialAccount(true);
@@ -38,13 +36,12 @@ export function ChatView({ conversation }: ChatViewProps) {
   }, [conversation]);
 
   useEffect(() => {
-    if (conversation) {
-      setMessages(conversation.messages);
+    if (conversation && messagingContext.selectedConversation?.id === conversation.id) {
+      setMessages(messagingContext.selectedConversation.messages);
     }
-  }, [conversation, messagingContext.conversations]);
+  }, [conversation, messagingContext.selectedConversation]);
 
   const sendMessage = (text: string) => {
-    // If trying to message the official account, show a notification instead
     if (isOfficialAccount) {
       toast({
         title: "Cannot message Meetefy",
@@ -60,7 +57,6 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const sendAttachment = async (file: File, type: 'image' | 'video') => {
-    // If trying to message the official account, show a notification instead
     if (isOfficialAccount) {
       toast({
         title: "Cannot message Meetefy",
@@ -71,26 +67,23 @@ export function ChatView({ conversation }: ChatViewProps) {
     }
     
     try {
-      // Convert file to base64 string
       const reader = new FileReader();
       reader.readAsDataURL(file);
       
       reader.onloadend = () => {
         const base64data = reader.result as string;
         
-        // Create new message with attachment
         const newMessage: Message = {
           id: `msg-${Date.now()}`,
           senderId: currentUser?.id || '',
-          text: '', // Empty text for attachment-only messages
+          text: '',
           timestamp: new Date(),
           read: false,
           type: type,
           attachmentUrl: base64data,
-          replyToId: replyToMessage?.id // Include reply info if replying
+          replyToId: replyToMessage?.id
         };
         
-        // Custom function to add attachment message
         messagingContext.sendAttachmentMessage(newMessage);
         setReplyToMessage(null);
         scrollToBottom();
@@ -106,7 +99,6 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const sendVoiceMessage = async (audioBlob: Blob, duration: number) => {
-    // If trying to message the official account, show a notification instead
     if (isOfficialAccount) {
       toast({
         title: "Cannot message Meetefy",
@@ -117,27 +109,24 @@ export function ChatView({ conversation }: ChatViewProps) {
     }
     
     try {
-      // Convert blob to base64 string
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       
       reader.onloadend = () => {
         const base64data = reader.result as string;
         
-        // Create new voice message
         const newMessage: Message = {
           id: `msg-${Date.now()}`,
           senderId: currentUser?.id || '',
-          text: '', // Empty text for voice-only messages
+          text: '',
           timestamp: new Date(),
           read: false,
           type: 'voice',
           attachmentUrl: base64data,
           audioDuration: duration,
-          replyToId: replyToMessage?.id // Include reply info if replying
+          replyToId: replyToMessage?.id
         };
         
-        // Send the voice message
         messagingContext.sendAttachmentMessage(newMessage);
         setReplyToMessage(null);
         scrollToBottom();
@@ -153,7 +142,6 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const handleReaction = (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
-    // Don't allow reactions in the official account chat
     if (isOfficialAccount) {
       toast({
         title: "Cannot react to Meetefy messages",
@@ -167,7 +155,6 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const handleEditMessage = (messageId: string, newText: string) => {
-    // Don't allow editing in the official account chat
     if (isOfficialAccount) {
       toast({
         title: "Cannot edit messages to Meetefy",
@@ -181,7 +168,6 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    // Don't allow deleting in the official account chat
     if (isOfficialAccount) {
       toast({
         title: "Cannot delete messages to Meetefy",
@@ -195,7 +181,6 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const handleReplyMessage = (messageId: string) => {
-    // Don't allow replying in the official account chat
     if (isOfficialAccount) {
       toast({
         title: "Cannot reply to Meetefy messages",
@@ -208,7 +193,6 @@ export function ChatView({ conversation }: ChatViewProps) {
     const messageToReply = messages.find(msg => msg.id === messageId);
     if (messageToReply) {
       setReplyToMessage(messageToReply);
-      // Focus on input after setting reply
       setTimeout(() => {
         const inputElement = document.querySelector('input[placeholder="Type a message..."]') as HTMLInputElement;
         if (inputElement) {
@@ -226,12 +210,10 @@ export function ChatView({ conversation }: ChatViewProps) {
     return messages.map((message) => {
       const isSent = message.senderId === currentUser?.id;
       
-      // If this message is a reply, find the original message
       const replyToMessage = message.replyToId ? messages.find(msg => msg.id === message.replyToId) : null;
       
       return (
         <div key={message.id} className="flex flex-col">
-          {/* Show reply information if this is a reply */}
           {replyToMessage && (
             <div 
               className={`text-xs text-muted-foreground mb-1 ${
@@ -270,7 +252,6 @@ export function ChatView({ conversation }: ChatViewProps) {
     scrollToBottom();
   }, [messages]);
 
-  // Find the other user in the conversation to pass to ChatHeader
   const getOtherUser = () => {
     if (!conversation || !currentUser) return null;
     return conversation.participants.find(user => user.id !== currentUser.id);
@@ -280,14 +261,12 @@ export function ChatView({ conversation }: ChatViewProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Updated to pass the other user instead of the whole conversation */}
       <ChatHeader user={otherUser} />
       
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
-        {/* Display user's story at top if they have one */}
         {otherUser && !isOfficialAccount && (
           <div className="flex items-center justify-center mb-4">
             <StoryCircle user={otherUser} size="sm" showName={false} />

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 import { 
@@ -18,6 +19,7 @@ import {
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MessagingContextType {
   conversations: Conversation[];
@@ -65,6 +67,47 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     initialize();
   }, [toast]);
+
+  // Set up real-time subscription for messages
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    // Subscribe to real-time updates for messages
+    const channel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'messages' 
+        }, 
+        async (payload) => {
+          console.log('Real-time message update received:', payload);
+          
+          // If we have a selected conversation, check if the message belongs to it
+          if (selectedConversation && payload.new && payload.new.conversation_id === selectedConversation.id) {
+            // Refresh the current conversation to get the latest messages
+            const refreshedConversation = await getConversation(selectedConversation.id);
+            if (refreshedConversation) {
+              setSelectedConversation(refreshedConversation);
+            }
+          }
+          
+          // Refresh all conversations to update the list with latest messages
+          const allConversations = await getAllConversations();
+          const userConversations = allConversations.filter(conv => 
+            conv.participants.some(p => p.id === currentUser.id)
+          );
+          setConversations(userConversations);
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser, isAuthenticated, selectedConversation]);
 
   useEffect(() => {
     const loadConversations = async () => {
