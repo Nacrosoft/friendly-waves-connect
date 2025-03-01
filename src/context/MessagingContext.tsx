@@ -67,11 +67,9 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     initialize();
   }, [toast]);
 
-  // Set up real-time subscription for messages
   useEffect(() => {
     if (!isAuthenticated || !currentUser) return;
 
-    // Subscribe to real-time updates for messages
     const channel = supabase
       .channel('public:messages')
       .on('postgres_changes', 
@@ -83,7 +81,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         async (payload) => {
           console.log('Real-time message update received:', payload);
           
-          // Safely check if payload.new exists and has conversation_id
           const newMessageData = payload.new as Record<string, any> | null;
           if (!newMessageData || typeof newMessageData !== 'object') {
             console.log('Invalid payload received:', payload);
@@ -96,16 +93,13 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             return;
           }
           
-          // If we have a selected conversation, check if the message belongs to it
           if (selectedConversation && selectedConversation.id === conversationId) {
-            // Refresh the current conversation to get the latest messages
             const refreshedConversation = await getConversation(selectedConversation.id);
             if (refreshedConversation) {
               setSelectedConversation(refreshedConversation);
             }
           }
           
-          // Refresh all conversations to update the list with latest messages
           const allConversations = await getAllConversations();
           const userConversations = allConversations.filter(conv => 
             conv.participants.some(p => p.id === currentUser.id)
@@ -117,7 +111,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     console.log('Subscribed to real-time messages channel');
 
-    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
       console.log('Unsubscribed from real-time messages channel');
