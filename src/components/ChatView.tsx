@@ -6,6 +6,7 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { getOtherParticipant } from '@/data/conversations';
 import { useMessaging } from '@/context/MessagingContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -13,9 +14,10 @@ interface ChatViewProps {
 
 export function ChatView({ conversation }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { currentUser, sendMessage, addReaction } = useMessaging();
+  const { sendMessage, addReaction } = useMessaging();
+  const { currentUser } = useAuth();
   
-  const otherUser = getOtherParticipant(conversation);
+  const otherUser = getOtherParticipant(conversation, currentUser?.id || '');
   
   useEffect(() => {
     scrollToBottom();
@@ -42,7 +44,7 @@ export function ChatView({ conversation }: ChatViewProps) {
             <MessageBubble 
               key={message.id} 
               message={message} 
-              isSent={message.senderId === currentUser.id}
+              isSent={message.senderId === currentUser?.id}
               onReaction={(emoji) => handleReaction(message.id, emoji)}
             />
           ))}
