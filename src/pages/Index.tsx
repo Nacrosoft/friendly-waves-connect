@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChatList } from '@/components/ChatList';
 import { ChatView } from '@/components/ChatView';
@@ -7,6 +8,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useMessaging } from '@/context/MessagingContext';
 import { MessagesSquare } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Import the StoriesRow component
 import { StoriesRow } from "@/components/story/StoriesRow";
@@ -15,6 +17,7 @@ const Index = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const messagingContext = useMessaging();
   const { conversations, selectedConversation, selectConversation } = messagingContext;
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     if (conversations.length > 0 && !selectedConversationId) {
@@ -28,49 +31,56 @@ const Index = () => {
     selectConversation(conversationId);
   };
 
-return (
-  <div className="flex h-screen overflow-hidden">
-    <main className="flex-1 overflow-hidden">
-      <div className="grid lg:grid-cols-[320px_1fr] h-full">
-        <div className="border-r border-border h-full flex flex-col">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h1 className="font-semibold text-xl">Meetefy</h1>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <UserAvatar />
+  if (!currentUser) return null;
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <main className="flex-1 overflow-hidden">
+        <div className="grid lg:grid-cols-[320px_1fr] h-full">
+          <div className="border-r border-border h-full flex flex-col">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h1 className="font-semibold text-xl">Meetefy</h1>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <UserAvatar />
+              </div>
             </div>
-          </div>
-          <div className="flex-1 overflow-auto">
-            <ChatList 
-              conversations={conversations}
-              selectedConversationId={selectedConversation?.id}
-              onSelectConversation={handleConversationSelect}
-            />
-          </div>
-          <div className="p-3 border-t border-border">
-            <AddUserDialog />
-          </div>
-        </div>
-        <div className="flex flex-col h-full">
-          {selectedConversation ? (
-            <ChatView conversation={selectedConversation} />
-          ) : (
-            <div className="flex-1 flex flex-col overflow-auto p-4">
-              {/* Add StoriesRow here */}
-              <StoriesRow />
-              
-              <EmptyState 
-                icon={<MessagesSquare className="h-12 w-12 text-muted-foreground" />}
-                title="No conversation selected"
-                description="Select a conversation from the sidebar or start a new one"
+            <div className="flex-1 overflow-auto">
+              <ChatList 
+                conversations={conversations}
+                selectedConversationId={selectedConversation?.id}
+                onSelectConversation={handleConversationSelect}
+                currentUserId={currentUser.id}
               />
             </div>
-          )}
+            <div className="p-3 border-t border-border">
+              <AddUserDialog 
+                open={false} 
+                onOpenChange={() => {}} 
+                onAddUser={() => {}}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col h-full">
+            {selectedConversation ? (
+              <ChatView conversation={selectedConversation} />
+            ) : (
+              <div className="flex-1 flex flex-col overflow-auto p-4">
+                {/* Add StoriesRow here */}
+                <StoriesRow />
+                
+                <EmptyState 
+                  icon={<MessagesSquare className="h-12 w-12 text-muted-foreground" />}
+                  title="No conversation selected"
+                  description="Select a conversation from the sidebar or start a new one"
+                />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </main>
-  </div>
-);
+      </main>
+    </div>
+  );
 };
 
 export default Index;
