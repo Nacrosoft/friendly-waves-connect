@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { User, Lock, UserPlus } from 'lucide-react';
 
 export const RegisterForm = () => {
   const [username, setUsername] = useState('');
@@ -50,10 +51,11 @@ export const RegisterForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
-      <div className="space-y-2">
-        <label htmlFor="reg-username" className="text-sm font-medium">
-          Username
+    <form onSubmit={handleSubmit} className="space-y-5 w-full">
+      <div className="space-y-3">
+        <label htmlFor="reg-username" className="flex items-center gap-2 text-sm font-medium">
+          <User className="h-4 w-4 text-gray-500" />
+          <span>Username</span>
         </label>
         <Input
           id="reg-username"
@@ -62,13 +64,14 @@ export const RegisterForm = () => {
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Choose a username"
           disabled={isLoading}
-          className="w-full"
+          className="w-full mobile-friendly-input"
         />
       </div>
       
-      <div className="space-y-2">
-        <label htmlFor="reg-password" className="text-sm font-medium">
-          Password
+      <div className="space-y-3">
+        <label htmlFor="reg-password" className="flex items-center gap-2 text-sm font-medium">
+          <Lock className="h-4 w-4 text-gray-500" />
+          <span>Password</span>
         </label>
         <Input
           id="reg-password"
@@ -77,13 +80,14 @@ export const RegisterForm = () => {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Choose a password"
           disabled={isLoading}
-          className="w-full"
+          className="w-full mobile-friendly-input"
         />
       </div>
       
-      <div className="space-y-2">
-        <label htmlFor="confirm-password" className="text-sm font-medium">
-          Confirm Password
+      <div className="space-y-3">
+        <label htmlFor="confirm-password" className="flex items-center gap-2 text-sm font-medium">
+          <Lock className="h-4 w-4 text-gray-500" />
+          <span>Confirm Password</span>
         </label>
         <Input
           id="confirm-password"
@@ -92,11 +96,15 @@ export const RegisterForm = () => {
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder="Confirm your password"
           disabled={isLoading}
-          className="w-full"
+          className="w-full mobile-friendly-input"
         />
       </div>
       
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <Button 
+        type="submit" 
+        className="w-full mobile-friendly-button bg-[#6C63FF] hover:bg-[#5A52D5] mt-6" 
+        disabled={isLoading}
+      >
         {isLoading ? 'Creating account...' : 'Create Account'}
       </Button>
     </form>

@@ -1,35 +1,46 @@
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface AuthFormWrapperProps {
   children: ReactNode;
-  type?: 'login' | 'register'; // Add type prop
   buttonText?: string;
   onButtonClick?: () => void;
+  onInputChange?: (e: ChangeEvent<HTMLInputElement>) => void;
+  inputValue?: string;
 }
 
 export const AuthFormWrapper = ({ 
   children, 
-  type = 'login',
-  buttonText = type === 'login' ? 'Login' : 'Register',
-  onButtonClick = () => {}
+  buttonText = 'Submit',
+  onButtonClick = () => {},
+  onInputChange,
+  inputValue = ''
 }: AuthFormWrapperProps) => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {children}
       
-      <div className="flex items-center gap-2 mt-4">
-        <div className="relative flex-1">
-          <input 
-            type="text" 
-            placeholder="Quick access code..."
-            className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background"
-          />
+      <div className="pt-4 border-t border-gray-200">
+        <p className="text-sm text-gray-500 mb-3">Quick access</p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Input 
+              type="text" 
+              placeholder="Enter quick access code..."
+              className="w-full"
+              value={inputValue}
+              onChange={onInputChange}
+            />
+          </div>
+          <Button 
+            onClick={onButtonClick} 
+            className="w-full sm:w-auto bg-[#6C63FF] hover:bg-[#5A52D5]"
+          >
+            {buttonText}
+          </Button>
         </div>
-        <Button onClick={onButtonClick} className="shrink-0">
-          {buttonText}
-        </Button>
       </div>
     </div>
   );
