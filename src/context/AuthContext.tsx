@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
@@ -8,13 +7,14 @@ interface AuthContextType {
   allUsers: User[] | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  error: string | null; // Added error property
+  error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   register: (name: string, username: string, password: string, avatar?: string) => Promise<boolean>;
   logout: () => void;
   updateUserStatus: (status: 'online' | 'offline' | 'away') => Promise<void>;
-  updateUser: (user: User) => Promise<void>; // Return type is void
-  updateCurrentUser: (user: User) => Promise<void>; // Added for Settings.tsx
+  updateUser: (user: User) => Promise<void>;
+  updateCurrentUser: (user: User) => Promise<void>;
+  clearAllUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,10 +23,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // Added error state
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const clearAllUserData = async (): Promise<void> => {
+    try {
+      localStorage.removeItem('users');
+      localStorage.removeItem('loggedInUser');
+      
+      setCurrentUser(null);
+      setAllUsers([]);
+      
+      toast({
+        title: 'Database Cleared',
+        description: 'All user data has been removed from the database.',
+      });
+    } catch (error) {
+      console.error('Failed to clear user data:', error);
+      setError('Failed to clear user data');
+      toast({
+        title: 'Error',
+        description: 'Failed to clear user data.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   useEffect(() => {
+    clearAllUserData();
+    
     const loadUsers = () => {
       setIsLoading(true);
       try {
@@ -34,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const users: User[] = usersStr ? JSON.parse(usersStr) : [];
         setAllUsers(users);
         
-        // Check for a logged-in user
         const loggedInUsername = localStorage.getItem('loggedInUser');
         if (loggedInUsername) {
           const user = users.find(u => u.username === loggedInUsername);
@@ -167,7 +191,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const updatedUser = { ...currentUser, status, lastSeen: new Date() };
       
-      // Update user in local storage
       const usersStr = localStorage.getItem('users');
       let users: User[] = usersStr ? JSON.parse(usersStr) : [];
       
@@ -194,13 +217,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Add the updateUser method to the context value
   const updateUser = async (user: User): Promise<void> => {
     try {
-      // Update user in the database
       await updateUserInDatabase(user);
       
-      // Update the user in the allUsers array
       if (allUsers) {
         const updatedAllUsers = allUsers.map(u => 
           u.id === user.id ? user : u
@@ -208,7 +228,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAllUsers(updatedAllUsers);
       }
       
-      // Update the current user if it's the same user
       if (currentUser && currentUser.id === user.id) {
         setCurrentUser(user);
       }
@@ -219,7 +238,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Add updateCurrentUser for Settings.tsx
   const updateCurrentUser = async (user: User): Promise<void> => {
     if (!currentUser) return;
     
@@ -252,7 +270,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     updateUserStatus,
     updateUser,
-    updateCurrentUser
+    updateCurrentUser,
+    clearAllUserData
   };
 
   return (
@@ -270,17 +289,13 @@ export const useAuth = () => {
   return context;
 };
 
-// Helper function to update a user in the database
 const updateUserInDatabase = async (user: User): Promise<User> => {
   try {
-    // Get all current users
     const usersStr = localStorage.getItem('users');
     let users: User[] = usersStr ? JSON.parse(usersStr) : [];
     
-    // Update the user
     users = users.map(u => u.id === user.id ? user : u);
     
-    // Save back to localStorage
     localStorage.setItem('users', JSON.stringify(users));
     
     return user;
