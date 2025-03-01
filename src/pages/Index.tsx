@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -16,7 +17,7 @@ const Index = () => {
   const newUser = searchParams.get("newUser");
   const [isFirstLoad, setIsFirstLoad] = React.useState(true);
 
-  const { conversations, selectedConversationId, selectConversation } = useMessaging();
+  const { conversations, activeConversationId, selectConversation } = useMessaging();
   const { currentUser } = useAuth();
   const [showAddUserDialog, setShowAddUserDialog] = React.useState(false);
 
@@ -50,7 +51,7 @@ const Index = () => {
         
         <ChatList 
           conversations={conversations} 
-          selectedConversationId={selectedConversationId} 
+          selectedConversationId={activeConversationId} 
           onSelectConversation={selectConversation}
           currentUserId={currentUser?.id || ''}
         />
@@ -62,9 +63,9 @@ const Index = () => {
         />
       </div>
       <div className="flex flex-col flex-1">
-        {selectedConversationId ? (
+        {activeConversationId ? (
           <ChatView 
-            conversationId={selectedConversationId} 
+            conversation={conversations.find(c => c.id === activeConversationId)}
           />
         ) : (
           <EmptyState />

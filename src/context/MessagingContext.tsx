@@ -1,425 +1,148 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
-import { 
-  initDatabase, 
-  getAllConversations, 
-  getConversation, 
-  addMessageToConversation, 
-  markConversationAsRead,
-  addReactionToMessage,
-  saveConversation,
-  getUser,
-  saveCustomEmoji,
-  getCustomEmojisForUser,
-  deleteCustomEmoji,
-  editMessageInConversation,
-  deleteMessageInConversation
-} from '@/utils/database';
-import { getOtherParticipant } from '@/data/conversations';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { Conversation, Message, User, Reaction } from '@/types/chat';
+import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from './AuthContext';
+import { 
+  getAllConversations, 
+  saveConversation, 
+  addMessageToConversation, 
+  markConversationAsRead, 
+  addReactionToMessage,
+  getUser,
+  deleteMessageInConversation,
+  editMessageInConversation
+} from '@/utils/database';
 
 interface MessagingContextType {
   conversations: Conversation[];
-  selectedConversation: Conversation | null;
-  isLoading: boolean;
+  activeConversationId: string | null;
+  isLoadingConversations: boolean;
   selectConversation: (conversationId: string) => void;
-  sendMessage: (text: string, replyToId?: string) => Promise<void>;
-  sendAttachmentMessage: (message: Message) => Promise<void>;
-  addReaction: (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => Promise<void>;
+  sendMessage: (text: string, type?: 'text' | 'image' | 'video' | 'file' | 'voice', attachmentUrl?: string, audioDuration?: number) => Promise<void>;
   startNewConversation: (userId: string) => Promise<void>;
-  saveCustomEmoji: (emoji: CustomEmoji) => Promise<CustomEmoji>;
-  deleteUserEmoji: (emojiId: string) => Promise<boolean>;
-  editMessage: (messageId: string, newText: string) => Promise<void>;
+  markAsRead: (conversationId: string) => Promise<void>;
+  addReaction: (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
+  editMessage: (messageId: string, newText: string) => Promise<void>;
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
 
 export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isDbInitialized, setIsDbInitialized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const { currentUser } = useAuth();
   const { toast } = useToast();
-  const { currentUser, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        const initialized = await initDatabase();
-        if (initialized) {
-          setIsDbInitialized(true);
-        }
-      } catch (error) {
-        console.error('Failed to initialize database:', error);
-        toast({
-          title: 'Database Error',
-          description: 'Could not initialize the message database.',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    initialize();
-  }, [toast]);
-
-  useEffect(() => {
-    const loadConversations = async () => {
-      if (!isAuthenticated || !currentUser || !isDbInitialized) return;
-      
-      setIsLoading(true);
-      try {
-        const allConversations = await getAllConversations();
-        const userConversations = allConversations.filter(conv => 
-          conv.participants.some(p => p.id === currentUser.id)
-        );
-        setConversations(userConversations);
-      } catch (error) {
-        console.error('Error loading conversations:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not load your conversations.',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadConversations();
-  }, [currentUser, isAuthenticated, isDbInitialized, toast]);
-
-  const selectConversation = async (conversationId: string) => {
-    if (!currentUser) return;
-    
-    setIsLoading(true);
+  const loadConversations = useCallback(async () => {
+    setIsLoadingConversations(true);
     try {
-      const conversation = await getConversation(conversationId);
-      
-      if (conversation) {
-        const updatedConversation = await markConversationAsRead(conversationId);
-        
-        if (updatedConversation) {
-          setSelectedConversation(updatedConversation);
-          
-          setConversations(prevConversations => 
-            prevConversations.map(conv => 
-              conv.id === conversationId ? updatedConversation : conv
-            )
-          );
-        }
-      }
+      const allConversations = await getAllConversations();
+      setConversations(allConversations);
     } catch (error) {
-      console.error('Error selecting conversation:', error);
+      console.error('Failed to load conversations:', error);
       toast({
         title: 'Error',
-        description: 'Could not load the conversation.',
+        description: 'Failed to load conversations.',
         variant: 'destructive'
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingConversations(false);
     }
+  }, [toast]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  const selectConversation = (conversationId: string) => {
+    setActiveConversationId(conversationId);
   };
 
-  const sendMessage = async (text: string, replyToId?: string) => {
-    if (!selectedConversation || !currentUser) return;
-    
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
+  const sendMessage = async (text: string, type: 'text' | 'image' | 'video' | 'file' | 'voice' = 'text', attachmentUrl?: string, audioDuration?: number) => {
+    if (!activeConversationId || !currentUser) return;
+
+    const message: Message = {
+      id: uuidv4(),
       senderId: currentUser.id,
       text,
       timestamp: new Date(),
       read: false,
-      type: 'text',
-      replyToId
+      type,
+      attachmentUrl,
+      audioDuration,
     };
-    
-    try {
-      const updatedConversation = await addMessageToConversation(
-        selectedConversation.id, 
-        newMessage
-      );
-      
-      if (updatedConversation) {
-        setSelectedConversation(updatedConversation);
-        
-        setConversations(prevConversations => 
-          prevConversations.map(conv => 
-            conv.id === selectedConversation.id ? updatedConversation : conv
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not send the message.',
-        variant: 'destructive'
-      });
-    }
-  };
 
-  const sendAttachmentMessage = async (message: Message) => {
-    if (!selectedConversation || !currentUser) return;
-    
-    try {
-      const updatedConversation = await addMessageToConversation(
-        selectedConversation.id, 
-        message
-      );
-      
-      if (updatedConversation) {
-        setSelectedConversation(updatedConversation);
-        
-        setConversations(prevConversations => 
-          prevConversations.map(conv => 
-            conv.id === selectedConversation.id ? updatedConversation : conv
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error sending attachment message:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not send the attachment.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const editMessage = async (messageId: string, newText: string) => {
-    if (!selectedConversation || !currentUser) return;
-    
-    try {
-      const updatedConversation = await editMessageInConversation(
-        selectedConversation.id,
-        messageId,
-        newText
-      );
-      
-      if (updatedConversation) {
-        setSelectedConversation(updatedConversation);
-        
-        setConversations(prevConversations => 
-          prevConversations.map(conv => 
-            conv.id === selectedConversation.id ? updatedConversation : conv
-          )
-        );
-        
-        toast({
-          title: 'Message edited',
-          description: 'Your message was updated successfully.',
-        });
-      }
-    } catch (error) {
-      console.error('Error editing message:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not edit the message.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const addReaction = async (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
-    if (!selectedConversation || !currentUser) return;
-    
-    const reaction: Reaction = {
-      emoji,
-      userId: currentUser.id,
-      isCustom,
-      customEmojiId
-    };
-    
-    try {
-      const updatedConversation = await addReactionToMessage(
-        selectedConversation.id,
-        messageId,
-        reaction
-      );
-      
-      if (updatedConversation) {
-        setSelectedConversation(updatedConversation);
-        
-        setConversations(prevConversations => 
-          prevConversations.map(conv => 
-            conv.id === selectedConversation.id ? updatedConversation : conv
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not add the reaction.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const saveUserEmoji = async (emoji: CustomEmoji): Promise<CustomEmoji> => {
-    if (!currentUser) {
-      throw new Error('User not authenticated');
-    }
-    
-    try {
-      const savedEmoji = await saveCustomEmoji(emoji);
-      
-      if (currentUser) {
-        const updatedUser = {...currentUser};
-        if (!updatedUser.customEmojis) {
-          updatedUser.customEmojis = [];
-        }
-        
-        const existingIndex = updatedUser.customEmojis.findIndex(e => e.id === emoji.id);
-        if (existingIndex >= 0) {
-          updatedUser.customEmojis[existingIndex] = savedEmoji;
-        } else {
-          updatedUser.customEmojis.push(savedEmoji);
-        }
-      }
-      
-      return savedEmoji;
-    } catch (error) {
-      console.error('Error saving custom emoji:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not save the custom emoji.',
-        variant: 'destructive'
-      });
-      throw error;
-    }
-  };
-
-  const deleteUserEmoji = async (emojiId: string): Promise<boolean> => {
-    if (!currentUser) {
-      throw new Error('User not authenticated');
-    }
-    
-    try {
-      const success = await deleteCustomEmoji(emojiId, currentUser.id);
-      
-      if (success && currentUser.customEmojis) {
-        const updatedUser = {...currentUser};
-        updatedUser.customEmojis = updatedUser.customEmojis.filter(e => e.id !== emojiId);
-      }
-      
-      return success;
-    } catch (error) {
-      console.error('Error deleting custom emoji:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not delete the custom emoji.',
-        variant: 'destructive'
-      });
-      throw error;
-    }
+    await addMessageToConversation(activeConversationId, message);
+    loadConversations(); // Refresh conversations after sending a message
   };
 
   const startNewConversation = async (userId: string) => {
     if (!currentUser) return;
-    
-    try {
-      const existingConv = conversations.find(conv => 
-        conv.participants.some(p => p.id === userId) && 
-        conv.participants.some(p => p.id === currentUser.id)
-      );
-      
-      if (existingConv) {
-        selectConversation(existingConv.id);
-        return;
-      }
-      
-      const otherUser = await getUser(userId);
-      
-      if (!otherUser) {
-        toast({
-          title: 'User Not Found',
-          description: 'Could not find the user to start a conversation with.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      const newConversation: Conversation = {
-        id: `conversation-${Date.now()}`,
-        participants: [currentUser, otherUser],
-        messages: [],
-        lastMessageText: 'Start a new conversation',
-        lastMessageTime: new Date(),
-        unreadCount: 0
-      };
-      
-      const savedConversation = await saveConversation(newConversation);
-      
-      setConversations(prev => [...prev, savedConversation]);
-      
-      setSelectedConversation(savedConversation);
-      
-    } catch (error) {
-      console.error('Error starting new conversation:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not start a new conversation.',
-        variant: 'destructive'
-      });
-      throw error;
-    }
+
+    const newConversation: Conversation = {
+      id: uuidv4(),
+      participants: [currentUser, { id: userId } as User],
+      messages: [],
+      lastMessageText: '',
+      lastMessageTime: new Date(),
+      unreadCount: 0,
+    };
+
+    await saveConversation(newConversation);
+    loadConversations(); // Refresh conversations after starting a new conversation
+  };
+
+  const markAsRead = async (conversationId: string) => {
+    await markConversationAsRead(conversationId);
+    loadConversations(); // Refresh conversations after marking as read
+  };
+
+  const addReaction = async (messageId: string, emoji: string, isCustom?: boolean, customEmojiId?: string) => {
+    if (!activeConversationId) return;
+
+    const reaction: Reaction = {
+      emoji,
+      userId: currentUser?.id || '',
+      isCustom,
+      customEmojiId,
+    };
+
+    await addReactionToMessage(activeConversationId, messageId, reaction);
+    loadConversations(); // Refresh conversations after adding a reaction
   };
 
   const deleteMessage = async (messageId: string) => {
-    if (!selectedConversation || !currentUser) return;
-    
-    try {
-      const updatedConversation = await deleteMessageInConversation(
-        selectedConversation.id,
-        messageId
-      );
-      
-      if (updatedConversation) {
-        setSelectedConversation(updatedConversation);
-        
-        setConversations(prevConversations => 
-          prevConversations.map(conv => 
-            conv.id === selectedConversation.id ? updatedConversation : conv
-          )
-        );
-        
-        toast({
-          title: 'Message deleted',
-          description: 'Your message was deleted successfully.',
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not delete the message.',
-        variant: 'destructive'
-      });
-    }
+    if (!activeConversationId) return;
+
+    await deleteMessageInConversation(activeConversationId, messageId);
+    loadConversations(); // Refresh conversations after deleting a message
+  };
+
+  const editMessage = async (messageId: string, newText: string) => {
+    if (!activeConversationId) return;
+
+    await editMessageInConversation(activeConversationId, messageId, newText);
+    loadConversations(); // Refresh conversations after editing a message
+  };
+
+  const value: MessagingContextType = {
+    conversations,
+    activeConversationId,
+    isLoadingConversations,
+    selectConversation,
+    sendMessage,
+    startNewConversation,
+    markAsRead,
+    addReaction,
+    deleteMessage,
+    editMessage
   };
 
   return (
-    <MessagingContext.Provider
-      value={{
-        conversations,
-        selectedConversation,
-        isLoading,
-        selectConversation,
-        sendMessage,
-        sendAttachmentMessage,
-        addReaction,
-        startNewConversation,
-        saveCustomEmoji: saveUserEmoji,
-        deleteUserEmoji,
-        editMessage,
-        deleteMessage
-      }}
-    >
+    <MessagingContext.Provider value={value}>
       {children}
     </MessagingContext.Provider>
   );
@@ -427,7 +150,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 export const useMessaging = () => {
   const context = useContext(MessagingContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useMessaging must be used within a MessagingProvider');
   }
   return context;
