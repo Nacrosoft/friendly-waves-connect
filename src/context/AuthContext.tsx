@@ -10,6 +10,7 @@ interface AuthContextType {
   register: (username: string, password: string, avatar?: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  updateCurrentUser: (updatedUser: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Initialize database and check for existing session
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -33,7 +33,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(user);
             setIsAuthenticated(true);
             
-            // Update user's status to online
             const updatedUser = {
               ...user,
               status: 'online' as const,
@@ -55,11 +54,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initialize();
   }, []);
 
-  // Add a cleanup effect to handle page unloads properly
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (currentUser) {
-        // Update user's status to offline when the page is unloaded
         const updatedUser = {
           ...currentUser,
           status: 'offline' as const,
@@ -86,14 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      // For simplicity, we're doing a very basic "login" here
-      // In a real app, you would hash passwords and validate credentials securely
-      // You would also use JWT or sessions for secure authentication
-      
-      // Create a user ID based on the username (in a real app, you'd query by username)
       const userId = `user-${username.toLowerCase().replace(/\s+/g, '-')}`;
       
-      // Try to get the user from the database
       const user = await getUser(userId);
       
       if (!user) {
@@ -101,17 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
       
-      // In a real app, you would validate the password here
-      // Since we're just doing a demo, we'll skip password validation for now
-      
-      // Set the current user and mark as authenticated
       setCurrentUser(user);
       setIsAuthenticated(true);
       
-      // Store user ID in localStorage for persistent login
       localStorage.setItem('currentUserId', user.id);
       
-      // Update user's status to online
       const updatedUser = {
         ...user,
         status: 'online' as const,
@@ -136,10 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      // Create a user ID based on the username
       const userId = `user-${username.toLowerCase().replace(/\s+/g, '-')}`;
       
-      // Check if user already exists
       const existingUser = await getUser(userId);
       
       if (existingUser) {
@@ -147,25 +130,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
       
-      // In a real app, you would hash the password here before storing it
-      
-      // Create new user
       const newUser: User = {
         id: userId,
         name: username,
         status: 'online',
-        avatar: avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`, // Generate avatar
+        avatar: avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
         lastSeen: new Date()
       };
       
-      // Save user to database
       await saveUser(newUser);
       
-      // Set the current user and mark as authenticated
       setCurrentUser(newUser);
       setIsAuthenticated(true);
       
-      // Store user ID in localStorage for persistent login
       localStorage.setItem('currentUserId', newUser.id);
       
       return true;
@@ -181,7 +158,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     if (currentUser) {
       try {
-        // Update user's status to offline before logging out
         const updatedUser = {
           ...currentUser,
           status: 'offline' as const,
@@ -194,10 +170,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     
-    // Clear user data
     setCurrentUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('currentUserId');
+  };
+
+  const updateCurrentUser = async (updatedUser: User): Promise<void> => {
+    if (!updatedUser) return;
+    
+    try {
+      await saveUser(updatedUser);
+      setCurrentUser(updatedUser);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      setError('Failed to update user information');
+    }
   };
 
   return (
@@ -209,7 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
-        isAuthenticated
+        isAuthenticated,
+        updateCurrentUser
       }}
     >
       {children}

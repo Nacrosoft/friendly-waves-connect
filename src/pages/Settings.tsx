@@ -3,30 +3,38 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, ArrowLeft, User } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AvatarMaker from '@/components/AvatarMaker';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Settings = () => {
-  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { currentUser, logout, updateCurrentUser } = useAuth();
   const { toast } = useToast();
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   const handleLogout = () => {
     logout();
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully",
-    });
     navigate('/auth');
-  };
-
-  const handleBack = () => {
-    navigate('/');
+    toast({
+      title: 'Logged out',
+      description: 'You have been logged out successfully',
+    });
   };
 
   if (!currentUser) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return (
+      <div className="p-4 text-center">
+        <p>Please log in to view settings</p>
+        <Button onClick={() => navigate('/auth')} className="mt-4">
+          Log In
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -46,35 +54,38 @@ const Settings = () => {
       </header>
 
       <main className="container mx-auto flex-1 p-4 max-w-2xl">
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-8">
           <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-            <h2 className="text-lg font-medium mb-4">Profile</h2>
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                <AvatarFallback>
-                  <User className="h-8 w-8" />
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-lg">{currentUser.name}</p>
-                <p className="text-muted-foreground">ID: {currentUser.id}</p>
+            <h2 className="text-xl font-semibold mb-4">Profile</h2>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-12 w-12 border border-border">
+                  <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
+                  <AvatarFallback>{currentUser.name.substring(0, 2)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{currentUser.name}</p>
+                  <p className="text-sm text-muted-foreground">{currentUser.id}</p>
+                </div>
               </div>
             </div>
           </div>
+          
+          <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+            <h2 className="text-xl font-semibold mb-4">Avatar Maker</h2>
+            <AvatarMaker user={currentUser} onUpdate={updateCurrentUser} />
+          </div>
 
           <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-            <h2 className="text-lg font-medium mb-4">Account</h2>
-            <div className="space-y-4">
-              <Button 
-                variant="destructive" 
-                className="w-full" 
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
-            </div>
+            <h2 className="text-xl font-semibold mb-4">Account</h2>
+            <Button 
+              variant="destructive" 
+              className="flex items-center gap-2"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
           </div>
         </div>
       </main>
