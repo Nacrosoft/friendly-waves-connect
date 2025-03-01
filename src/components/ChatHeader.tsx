@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User } from '@/types/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, Video, MoreHorizontal } from 'lucide-react';
@@ -10,9 +11,18 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ user }: ChatHeaderProps) {
+  const navigate = useNavigate();
+  
+  const handleUserClick = () => {
+    navigate(`/user/${user.id}`);
+  };
+  
   return (
     <div className="border-b border-border p-4 flex items-center justify-between bg-card/50 backdrop-blur-md glass-effect z-10 animate-fade-in">
-      <div className="flex items-center gap-3">
+      <div 
+        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={handleUserClick}
+      >
         <Avatar className="h-10 w-10 border border-border">
           <AvatarImage src={user.avatar} alt={user.name} />
           <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>

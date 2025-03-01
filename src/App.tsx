@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import { MessagingProvider } from "./context/MessagingContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -46,6 +47,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/user/:userId" 
+        element={
+          <ProtectedRoute>
+            <UserProfile />
           </ProtectedRoute>
         } 
       />

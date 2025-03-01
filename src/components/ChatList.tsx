@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Conversation } from '@/types/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getOtherParticipant } from '@/data/conversations';
@@ -13,6 +14,13 @@ interface ChatListProps {
 }
 
 export function ChatList({ conversations, selectedConversationId, onSelectConversation, currentUserId }: ChatListProps) {
+  const navigate = useNavigate();
+  
+  const handleUserClick = (event: React.MouseEvent, userId: string) => {
+    event.stopPropagation();
+    navigate(`/user/${userId}`);
+  };
+  
   return (
     <div className="flex flex-col overflow-hidden h-full animate-fade-in">
       <div className="p-4 border-b border-border">
@@ -37,7 +45,10 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
                 }`}
               >
                 <div className="relative">
-                  <Avatar className="h-12 w-12 border border-border">
+                  <Avatar 
+                    className="h-12 w-12 border border-border cursor-pointer hover:opacity-80"
+                    onClick={(e) => handleUserClick(e, otherUser.id)}
+                  >
                     <AvatarImage src={otherUser.avatar} alt={otherUser.name} />
                     <AvatarFallback>{otherUser.name.substring(0, 2)}</AvatarFallback>
                   </Avatar>
@@ -47,7 +58,12 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
-                    <h3 className="font-medium truncate">{otherUser.name}</h3>
+                    <h3 
+                      className="font-medium truncate cursor-pointer hover:underline"
+                      onClick={(e) => handleUserClick(e, otherUser.id)}
+                    >
+                      {otherUser.name}
+                    </h3>
                     <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
                       {formatTime(conversation.lastMessageTime)}
                     </span>
