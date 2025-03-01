@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Conversation } from '@/types/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +15,15 @@ interface ChatListProps {
 
 export function ChatList({ conversations, selectedConversationId, onSelectConversation, currentUserId }: ChatListProps) {
   const navigate = useNavigate();
+  const [sortedConversations, setSortedConversations] = useState<Conversation[]>([]);
+  
+  // Sort conversations by last message time whenever conversations change
+  useEffect(() => {
+    const sorted = [...conversations].sort((a, b) => {
+      return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+    });
+    setSortedConversations(sorted);
+  }, [conversations]);
   
   const handleUserClick = (event: React.MouseEvent, userId: string) => {
     event.stopPropagation();
@@ -27,12 +36,12 @@ export function ChatList({ conversations, selectedConversationId, onSelectConver
         <h1 className="text-2xl font-semibold">Messages</h1>
       </div>
       <div className="flex-1 overflow-y-auto scrollbar-hidden">
-        {conversations.length === 0 ? (
+        {sortedConversations.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
             No conversations yet. Start chatting!
           </div>
         ) : (
-          conversations.map(conversation => {
+          sortedConversations.map(conversation => {
             const otherUser = getOtherParticipant(conversation, currentUserId);
             const isSelected = selectedConversationId === conversation.id;
             
