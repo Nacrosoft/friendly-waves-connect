@@ -12,6 +12,7 @@ interface StoryCircleProps {
   showName?: boolean;
   isCreateStory?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
 export function StoryCircle({ 
@@ -19,7 +20,8 @@ export function StoryCircle({
   size = 'md', 
   showName = true, 
   isCreateStory = false,
-  className
+  className,
+  onClick
 }: StoryCircleProps) {
   const { setViewingStory, setIsCreatingStory, getStoriesForUser } = useStory();
   const { currentUser } = useAuth();
@@ -49,7 +51,9 @@ export function StoryCircle({
   };
   
   const handleClick = () => {
-    if (isCreateStory) {
+    if (onClick) {
+      onClick();
+    } else if (isCreateStory) {
       setIsCreatingStory(true);
     } else if (hasStories) {
       // View the first story

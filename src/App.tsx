@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { CallModal } from '@/components/CallModal';
 import { useMessaging } from '@/context/MessagingContext';
 import { MobileNavBar } from '@/components/MobileNavBar';
+import { StoryProvider } from '@/context/StoryContext';
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -33,7 +34,9 @@ function App() {
             path="/chat"
             element={
               <PrivateRoute>
-                <Chat />
+                <StoryProvider>
+                  <Chat />
+                </StoryProvider>
               </PrivateRoute>
             }
           />
@@ -45,7 +48,7 @@ function App() {
               </PrivateRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/chat" />} />
+          <Route path="/" element={<Navigate to={isAuthenticated ? "/chat" : "/login"} />} />
         </Routes>
         
         {isAuthenticated && <MobileNavBar />}

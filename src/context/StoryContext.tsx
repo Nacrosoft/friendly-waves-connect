@@ -42,12 +42,17 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     // Sort by creation date, newest first
-    allStories.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    allStories.sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
     
     // Remove expired stories
-    const filteredStories = allStories.filter(story => 
-      new Date(story.expiresAt).getTime() > Date.now()
-    );
+    const filteredStories = allStories.filter(story => {
+      const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
+      return expiryDate.getTime() > Date.now();
+    });
     
     setStories(filteredStories);
   }, [allUsers]);
@@ -157,11 +162,14 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.stories) return [];
     
     // Filter out expired stories
-    return user.stories.filter(story => 
-      new Date(story.expiresAt).getTime() > Date.now()
-    ).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return user.stories.filter(story => {
+      const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
+      return expiryDate.getTime() > Date.now();
+    }).sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   };
 
   const getUsersWithStories = (): User[] => {
@@ -171,9 +179,10 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Check if user has any non-expired stories
       if (!user.stories || user.stories.length === 0) return false;
       
-      const hasValidStories = user.stories.some(story => 
-        new Date(story.expiresAt).getTime() > Date.now()
-      );
+      const hasValidStories = user.stories.some(story => {
+        const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
+        return expiryDate.getTime() > Date.now();
+      });
       
       return hasValidStories;
     });

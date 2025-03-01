@@ -29,12 +29,13 @@ export const StoriesRow = ({ showCreateStory = false }: { showCreateStory?: bool
           </div>
         )}
         
-        {userStories.map(user => (
+        {userStories.map((user) => (
           <StoryCircle
             key={user.id}
             user={user}
             isCreateStory={false}
             className=""
+            onClick={() => viewStory(user.id)}
           />
         ))}
       </div>
