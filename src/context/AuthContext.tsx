@@ -50,8 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    clearAllUserData();
-    
     const loadUsers = () => {
       setIsLoading(true);
       try {
