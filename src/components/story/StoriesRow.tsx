@@ -1,17 +1,18 @@
+
 import React from 'react';
 import { StoryCircle } from './StoryCircle';
-import { useStories } from '@/context/StoryContext';
+import { useStory } from '@/context/StoryContext';
 import { useAuth } from '@/context/AuthContext';
-import { useStoryCreator } from '@/context/StoryCreatorContext';
 import { StoryCreator } from './StoryCreator';
 import { Plus } from 'lucide-react';
 
 export const StoriesRow = ({ showCreateStory = false }: { showCreateStory?: boolean }) => {
   const { currentUser } = useAuth();
-  const { userStories, viewStory } = useStories();
-  const { showStoryCreator, setShowStoryCreator } = useStoryCreator();
+  const { getUsersWithStories, viewStory, isCreatingStory, setIsCreatingStory } = useStory();
   
   if (!currentUser) return null;
+  
+  const userStories = getUsersWithStories();
   
   return (
     <div className="w-full overflow-x-auto">
@@ -19,7 +20,7 @@ export const StoriesRow = ({ showCreateStory = false }: { showCreateStory?: bool
         {showCreateStory && (
           <div className="flex flex-col items-center">
             <button
-              onClick={() => setShowStoryCreator(true)}
+              onClick={() => setIsCreatingStory(true)}
               className="w-16 h-16 rounded-full flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary cursor-pointer hover:bg-primary/20 transition"
             >
               <Plus className="h-6 w-6 text-primary" />
@@ -32,12 +33,13 @@ export const StoriesRow = ({ showCreateStory = false }: { showCreateStory?: bool
           <StoryCircle
             key={user.id}
             user={user}
-            onClick={() => viewStory(user.id)}
+            isCreateStory={false}
+            className=""
           />
         ))}
       </div>
       
-      {showStoryCreator && <StoryCreator />}
+      {isCreatingStory && <StoryCreator />}
     </div>
   );
 };

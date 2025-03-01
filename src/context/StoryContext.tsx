@@ -13,7 +13,7 @@ interface StoryContextType {
   setViewingStory: (story: Story | null, user: User | null, index: number) => void;
   setIsCreatingStory: (isCreating: boolean) => void;
   createStory: (type: 'image' | 'video' | 'text', content: string, bgColor?: string) => Promise<void>;
-  viewStory: (storyId: string) => Promise<void>;
+  viewStory: (userId: string) => Promise<void>;
   getStoriesForUser: (userId: string) => Story[];
   closeStory: () => void;
   getUsersWithStories: () => User[];
@@ -69,8 +69,8 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         type,
         content,
         bgColor: type === 'text' ? bgColor : undefined,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
         viewers: []
       };
 
@@ -102,29 +102,19 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const viewStory = async (storyId: string) => {
+  const viewStory = async (userId: string) => {
     if (!currentUser) return;
 
     try {
-      const story = stories.find(s => s.id === storyId);
-      if (!story) return;
-
-      // Mark as viewed if not already viewed by current user
-      if (!story.viewers.includes(currentUser.id)) {
-        story.viewers.push(currentUser.id);
-        
-        // Update the story in the user's stories array
-        const storyOwner = allUsers?.find(user => user.id === story.userId);
-        if (storyOwner && storyOwner.stories) {
-          const storyIndex = storyOwner.stories.findIndex(s => s.id === storyId);
-          if (storyIndex !== -1) {
-            storyOwner.stories[storyIndex] = story;
-            await updateUser(storyOwner);
-          }
-        }
-        
-        // Update local state
-        setStories(prev => prev.map(s => s.id === storyId ? story : s));
+      const userStories = getStoriesForUser(userId);
+      if (userStories.length === 0) return;
+      
+      // View the first story
+      const story = userStories[0];
+      const user = allUsers?.find(u => u.id === userId);
+      
+      if (story && user) {
+        setViewingStory(story, user, 0);
       }
     } catch (error) {
       console.error("Error viewing story:", error);
@@ -177,7 +167,23 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setViewingStoryUser(user);
           setViewingStoryIndex(index);
           if (story) {
-            viewStory(story.id);
+            // Mark as viewed if not already viewed by current user
+            if (currentUser && !story.viewers.includes(currentUser.id)) {
+              story.viewers.push(currentUser.id);
+              
+              // Update the story in the user's stories array
+              const storyOwner = allUsers?.find(user => user.id === story.userId);
+              if (storyOwner && storyOwner.stories) {
+                const storyIndex = storyOwner.stories.findIndex(s => s.id === story.id);
+                if (storyIndex !== -1) {
+                  storyOwner.stories[storyIndex] = story;
+                  updateUser(storyOwner);
+                }
+              }
+              
+              // Update local state
+              setStories(prev => prev.map(s => s.id === story.id ? story : s));
+            }
           }
         },
         setIsCreatingStory,
