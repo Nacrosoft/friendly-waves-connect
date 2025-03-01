@@ -83,6 +83,11 @@ export const getAllConversations = async (): Promise<Conversation[]> => {
   return db.getAll('conversations');
 };
 
+export const getAllUsers = async (): Promise<User[]> => {
+  const db = await openDBInstance();
+  return db.getAll('users');
+};
+
 export const addMessageToConversation = async (
   conversationId: string,
   message: Message
@@ -200,7 +205,6 @@ export const deleteCustomEmoji = async (emojiId: string, userId: string): Promis
   }
 };
 
-// Add this function to the database utility functions
 export const editMessageInConversation = async (
   conversationId: string,
   messageId: string,
