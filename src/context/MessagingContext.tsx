@@ -16,7 +16,8 @@ import {
   deleteMessageInConversation,
   saveCall,
   updateCall,
-  getActiveCalls
+  getActiveCalls,
+  getAllUsers,
 } from '@/utils/database';
 import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +43,8 @@ interface MessagingContextType {
   endCall: (callId: string) => Promise<void>;
   incomingCall: Call | null;
   activeCall: Call | null;
+  createNewConversation: (participants: User[]) => Promise<Conversation>;
+  allUsers: User[];
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -55,6 +58,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const { toast } = useToast();
   const { currentUser, isAuthenticated } = useAuth();
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -268,7 +272,17 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     };
     
+    const loadAllUsers = async () => {
+      try {
+        const users = await getAllUsers();
+        setAllUsers(users);
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    };
+    
     loadConversations();
+    loadAllUsers();
   }, [currentUser, isAuthenticated, isDbInitialized, toast]);
 
   const selectConversation = async (conversationId: string) => {
@@ -715,6 +729,40 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const createNewConversation = async (participants: User[]): Promise<Conversation> => {
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Check if a conversation already exists with these participants
+      const existingConv = conversations.find(conv => {
+        const participantIds = conv.participants.map(p => p.id);
+        return participants.every(p => participantIds.includes(p.id));
+      });
+      
+      if (existingConv) {
+        return existingConv;
+      }
+      
+      const newConversation: Conversation = {
+        id: `conversation-${Date.now()}`,
+        participants: participants,
+        messages: [],
+        lastMessageText: 'Start a new conversation',
+        lastMessageTime: new Date(),
+        unreadCount: 0
+      };
+      
+      const savedConversation = await saveConversation(newConversation);
+      setConversations(prev => [...prev, savedConversation]);
+      return savedConversation;
+    } catch (error) {
+      console.error('Error creating new conversation:', error);
+      throw error;
+    }
+  };
+
   return (
     <MessagingContext.Provider
       value={{
@@ -735,7 +783,9 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         declineCall,
         endCall,
         incomingCall,
-        activeCall
+        activeCall,
+        createNewConversation,
+        allUsers
       }}
     >
       {children}

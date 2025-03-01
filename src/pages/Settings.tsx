@@ -98,7 +98,8 @@ const Settings = () => {
     try {
       const selectedUser = allUsers.find(user => user.id === userId);
       if (selectedUser) {
-        await createNewConversation([currentUser, selectedUser]);
+        const participants = [currentUser, selectedUser];
+        await createNewConversation(participants);
         
         toast({
           title: 'User Added',
