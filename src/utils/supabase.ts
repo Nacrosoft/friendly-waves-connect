@@ -1,20 +1,17 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, Conversation, Message, Reaction, CustomEmoji } from '@/types/chat';
+import { env } from '@/env';
 
 // Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = env.SUPABASE_URL;
+const supabaseKey = env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Supabase credentials are missing. Please check your environment variables.');
 }
 
 // Create Supabase client
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseKey || ''
-);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Function to handle database errors
 const handleDBError = (error: any, operation: string) => {

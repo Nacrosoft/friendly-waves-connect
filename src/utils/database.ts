@@ -1,4 +1,3 @@
-
 import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 import {
   saveUserToSupabase,
@@ -15,12 +14,18 @@ import {
   deleteCustomEmojiFromSupabase,
   editMessageInSupabase,
   deleteMessageInSupabase,
-  updateUserInSupabase
+  updateUserInSupabase,
+  supabase
 } from './supabase';
 
 export const initDatabase = async (): Promise<boolean> => {
   try {
-    // No initialization needed for Supabase, just return true
+    const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+    if (error) {
+      console.error('Failed to connect to Supabase:', error);
+      return false;
+    }
+    console.log('Successfully connected to Supabase database');
     return true;
   } catch (error) {
     console.error('Failed to initialize database:', error);

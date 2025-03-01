@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { saveUser, getUser, getAllUsers, updateUser as updateUserInDb } from '@/utils/database';
+import { supabase } from '@/utils/supabase';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -39,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = await getUser(loggedInUserId);
           if (user) {
             setCurrentUser(user);
+            console.log('User loaded from local storage:', user);
           }
         }
       } catch (error) {
@@ -60,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
+      console.log('Logging in with:', username, password);
       const users = await getAllUsers();
       
       const user = users.find(u => u.name === username && u.password === password);
@@ -80,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: 'Login Successful',
           description: `Welcome back, ${user.name}!`,
         });
+        console.log('Login successful:', updatedUser);
         return true;
       } else {
         const errorMessage = 'Invalid username or password.';
@@ -89,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: errorMessage,
           variant: 'destructive'
         });
+        console.error('Login failed: Invalid credentials');
         return false;
       }
     } catch (error) {
