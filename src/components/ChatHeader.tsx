@@ -4,9 +4,10 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { Phone, Video, Info, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { User } from '@/types/chat';
 
 interface ChatHeaderProps {
-  user: any;
+  user: User;
   onBackClick?: () => void; // Added for mobile back button
 }
 
