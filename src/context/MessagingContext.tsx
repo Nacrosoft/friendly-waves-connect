@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Conversation, Message, Reaction, User, CustomEmoji } from '@/types/chat';
 import { 
@@ -84,8 +83,21 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         async (payload) => {
           console.log('Real-time message update received:', payload);
           
+          // Safely check if payload.new exists and has conversation_id
+          const newMessageData = payload.new as Record<string, any> | null;
+          if (!newMessageData || typeof newMessageData !== 'object') {
+            console.log('Invalid payload received:', payload);
+            return;
+          }
+          
+          const conversationId = newMessageData.conversation_id;
+          if (!conversationId) {
+            console.log('No conversation_id in payload:', payload);
+            return;
+          }
+          
           // If we have a selected conversation, check if the message belongs to it
-          if (selectedConversation && payload.new && payload.new.conversation_id === selectedConversation.id) {
+          if (selectedConversation && selectedConversation.id === conversationId) {
             // Refresh the current conversation to get the latest messages
             const refreshedConversation = await getConversation(selectedConversation.id);
             if (refreshedConversation) {
@@ -103,9 +115,12 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       )
       .subscribe();
 
+    console.log('Subscribed to real-time messages channel');
+
     // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
+      console.log('Unsubscribed from real-time messages channel');
     };
   }, [currentUser, isAuthenticated, selectedConversation]);
 
