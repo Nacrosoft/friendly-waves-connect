@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -7,6 +6,7 @@ import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
 import { Message } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
+import { AlertCircle } from 'lucide-react';
 
 interface ChatViewProps {
   conversation: any;
@@ -19,10 +19,19 @@ export function ChatView({ conversation }: ChatViewProps) {
   const messagingContext = useMessaging();
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const [isOfficialAccount, setIsOfficialAccount] = useState(false);
 
   useEffect(() => {
     if (conversation) {
       setMessages(conversation.messages);
+      
+      // Check if this is a conversation with the official Meetefy account
+      const otherUser = getOtherUser();
+      if (otherUser?.id === 'user-meetefy') {
+        setIsOfficialAccount(true);
+      } else {
+        setIsOfficialAccount(false);
+      }
     }
   }, [conversation]);
 
@@ -33,12 +42,32 @@ export function ChatView({ conversation }: ChatViewProps) {
   }, [conversation, messagingContext.conversations]);
 
   const sendMessage = (text: string) => {
+    // If trying to message the official account, show a notification instead
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot message Meetefy",
+        description: "This is the official Meetefy account. You cannot send messages to it.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     messagingContext.sendMessage(text, replyToMessage?.id);
     setReplyToMessage(null);
     scrollToBottom();
   };
 
   const sendAttachment = async (file: File, type: 'image' | 'video') => {
+    // If trying to message the official account, show a notification instead
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot message Meetefy",
+        description: "This is the official Meetefy account. You cannot send messages to it.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       // Convert file to base64 string
       const reader = new FileReader();
@@ -75,6 +104,16 @@ export function ChatView({ conversation }: ChatViewProps) {
   };
 
   const sendVoiceMessage = async (audioBlob: Blob, duration: number) => {
+    // If trying to message the official account, show a notification instead
+    if (isOfficialAccount) {
+      toast({
+        title: "Cannot message Meetefy",
+        description: "This is the official Meetefy account. You cannot send messages to it.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       // Convert blob to base64 string
       const reader = new FileReader();
@@ -204,6 +243,23 @@ export function ChatView({ conversation }: ChatViewProps) {
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
+        {isOfficialAccount && (
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-lg p-4 mb-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Official Meetefy Account</h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                This is the official Meetefy account. You cannot send messages to it.
+              </p>
+              <a 
+                href="/blog/why-cant-message-meetefy" 
+                className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+              >
+                Read why &rarr;
+              </a>
+            </div>
+          </div>
+        )}
         {renderMessages()}
       </div>
       
@@ -213,6 +269,7 @@ export function ChatView({ conversation }: ChatViewProps) {
         onSendVoice={sendVoiceMessage}
         replyToMessage={replyToMessage}
         onCancelReply={cancelReply}
+        disabled={isOfficialAccount}
       />
     </div>
   );

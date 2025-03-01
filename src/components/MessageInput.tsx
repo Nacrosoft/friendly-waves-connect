@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Smile, Paperclip, Mic, Send, Image, X, Square } from 'lucide-react';
+import { Smile, Paperclip, Mic, Send, Image, X, Square, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -20,6 +19,7 @@ interface MessageInputProps {
   onSendVoice?: (audioBlob: Blob, duration: number) => void;
   replyToMessage?: Message | null;
   onCancelReply?: () => void;
+  disabled?: boolean;
 }
 
 const emojis = ['😀', '😂', '❤️', '👍', '🎉', '🔥', '😊', '🙏'];
@@ -29,7 +29,8 @@ export function MessageInput({
   onSendAttachment, 
   onSendVoice,
   replyToMessage,
-  onCancelReply 
+  onCancelReply,
+  disabled = false
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -73,6 +74,15 @@ export function MessageInput({
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (disabled) {
+      toast({
+        title: "Cannot message Meetefy",
+        description: "This is the official Meetefy account. You cannot send messages to it.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     if (audioBlob && onSendVoice) {
       onSendVoice(audioBlob, recordingTime);
@@ -239,7 +249,7 @@ export function MessageInput({
   
   return (
     <>
-      <form onSubmit={handleSubmit} className="p-4 bg-card/50 backdrop-blur-md border-t border-border glass-effect">
+      <form onSubmit={handleSubmit} className={`p-4 bg-card/50 backdrop-blur-md border-t border-border glass-effect ${disabled ? 'opacity-75' : ''}`}>
         {/* Reply indicator */}
         {replyToMessage && (
           <div className="mb-2 bg-secondary/30 p-2 rounded-md border border-border flex items-center justify-between">
@@ -367,10 +377,23 @@ export function MessageInput({
           </div>
         )}
         
+        {disabled && (
+          <div className="mb-3 flex items-center gap-2 text-muted-foreground">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">You cannot send messages to this account</span>
+          </div>
+        )}
+        
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="rounded-full flex-shrink-0">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full flex-shrink-0"
+                disabled={disabled}
+              >
                 <Smile className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -427,7 +450,7 @@ export function MessageInput({
             size="icon" 
             className="rounded-full flex-shrink-0"
             onClick={handleFileSelect}
-            disabled={isRecording}
+            disabled={isRecording || disabled}
           >
             <Paperclip className="h-5 w-5" />
             <input
@@ -436,18 +459,19 @@ export function MessageInput({
               accept="image/*,video/*"
               className="hidden"
               onChange={handleFileChange}
+              disabled={disabled}
             />
           </Button>
           
           <div className="relative flex-1">
             <Input
-              placeholder="Type a message..."
+              placeholder={disabled ? "You cannot message this account" : "Type a message..."}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="pr-10 bg-background/80 border-muted"
-              disabled={!!attachment || isRecording || !!audioBlob}
+              disabled={!!attachment || isRecording || !!audioBlob || disabled}
             />
-            {!message.trim() && !attachment && !isRecording && !audioBlob && (
+            {!message.trim() && !attachment && !isRecording && !audioBlob && !disabled && (
               <Button 
                 type="button" 
                 variant="ghost" 
@@ -463,8 +487,8 @@ export function MessageInput({
           <Button 
             type={isRecording ? "button" : "submit"}
             size="icon" 
-            disabled={!message.trim() && !attachment && !audioBlob && !isRecording} 
-            variant={(message.trim() || attachment || audioBlob || isRecording) ? "default" : "ghost"}
+            disabled={(!message.trim() && !attachment && !audioBlob && !isRecording) || disabled} 
+            variant={(message.trim() || attachment || audioBlob || isRecording) && !disabled ? "default" : "ghost"}
             className="rounded-full transition-all duration-200 flex-shrink-0"
             onClick={isRecording ? stopRecording : undefined}
           >
