@@ -16,6 +16,7 @@ export function ChatHeader({ user }: ChatHeaderProps) {
   const navigate = useNavigate();
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video' | null>(null);
+  const [isIncomingCall, setIsIncomingCall] = useState(false);
   const { toast } = useToast();
   
   const handleUserClick = () => {
@@ -28,7 +29,26 @@ export function ChatHeader({ user }: ChatHeaderProps) {
     if (!user) return;
     
     setCallType(type);
+    setIsIncomingCall(false);
     setIsCallModalOpen(true);
+  };
+  
+  // For demo purposes, simulate incoming calls when clicking the more button
+  const simulateIncomingCall = () => {
+    if (!user) return;
+    
+    // Randomly choose call type
+    const callTypes: ('voice' | 'video')[] = ['voice', 'video'];
+    const randomType = callTypes[Math.floor(Math.random() * callTypes.length)];
+    
+    setCallType(randomType);
+    setIsIncomingCall(true);
+    setIsCallModalOpen(true);
+    
+    toast({
+      title: "Incoming Call",
+      description: `${user.name} is calling you (${randomType})`,
+    });
   };
   
   return (
@@ -86,7 +106,12 @@ export function ChatHeader({ user }: ChatHeaderProps) {
         >
           <Video className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="rounded-full h-9 w-9"
+          onClick={simulateIncomingCall} // For demo purposes, simulate an incoming call
+        >
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </div>
@@ -97,6 +122,7 @@ export function ChatHeader({ user }: ChatHeaderProps) {
           onClose={() => setIsCallModalOpen(false)}
           user={user}
           callType={callType}
+          isIncoming={isIncomingCall}
         />
       )}
     </div>
