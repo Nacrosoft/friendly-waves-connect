@@ -34,6 +34,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () => {
+  const { currentUser } = useAuth();
+  
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
@@ -58,6 +60,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <UserProfile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            {currentUser ? <Navigate to={`/user/${currentUser.id}`} /> : <Navigate to="/" />}
           </ProtectedRoute>
         } 
       />
