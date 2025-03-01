@@ -71,7 +71,6 @@ const Index = () => {
                 
                 <div className="flex-1 flex items-center justify-center">
                   <EmptyState 
-                    className="max-w-md"
                     icon={<MessagesSquare className="h-12 w-12 text-muted-foreground" />}
                     title="No conversation selected"
                     description="Select a conversation from the sidebar or start a new one"
