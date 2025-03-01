@@ -6,6 +6,7 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Chat from '@/pages/Chat';
 import Status from '@/pages/Status';
+import UserProfile from '@/pages/UserProfile';
 import { Toaster } from '@/components/ui/toaster';
 import { CallModal } from '@/components/CallModal';
 import { useMessaging } from '@/context/MessagingContext';
@@ -45,6 +46,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Status />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/user/:userId"
+            element={
+              <PrivateRoute>
+                <UserProfile />
               </PrivateRoute>
             }
           />
