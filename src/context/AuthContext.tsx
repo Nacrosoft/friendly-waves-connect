@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/chat';
 import { initDatabase, saveUser, getUser } from '@/utils/database';
@@ -33,6 +32,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (user) {
             setCurrentUser(user);
             setIsAuthenticated(true);
+            
+            // Update user's status to online
+            const updatedUser = {
+              ...user,
+              status: 'online' as const,
+              lastSeen: new Date()
+            };
+            
+            await saveUser(updatedUser);
+            setCurrentUser(updatedUser);
           }
         }
       } catch (error) {
@@ -45,6 +54,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     initialize();
   }, []);
+
+  // Add a cleanup effect to handle page unloads properly
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (currentUser) {
+        // Update user's status to offline when the page is unloaded
+        const updatedUser = {
+          ...currentUser,
+          status: 'offline' as const,
+          lastSeen: new Date()
+        };
+        
+        try {
+          await saveUser(updatedUser);
+        } catch (error) {
+          console.error('Error updating user status on unload:', error);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentUser]);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
