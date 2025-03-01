@@ -5,6 +5,7 @@ export interface User {
   avatar?: string;
   status?: 'online' | 'offline' | 'away';
   lastSeen?: Date;
+  password?: string; // Only used for demo purposes - in a real app, you'd never store plaintext passwords
 }
 
 export interface Reaction {

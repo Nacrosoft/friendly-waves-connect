@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { ChatList } from '@/components/ChatList';
 import { ChatView } from '@/components/ChatView';
 import { EmptyState } from '@/components/EmptyState';
-import { MessageSquare, Users, Settings, Menu, PanelLeft } from 'lucide-react';
+import { MessageSquare, Users, Settings, Menu, PanelLeft, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMessaging } from '@/context/MessagingContext';
+import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
@@ -18,8 +19,12 @@ const Index = () => {
     conversations, 
     selectedConversation, 
     selectConversation,
-    isLoading
+    isLoading: isMessagingLoading
   } = useMessaging();
+  
+  const { currentUser, logout, isLoading: isAuthLoading } = useAuth();
+  
+  const isLoading = isMessagingLoading || isAuthLoading;
   
   // On mobile, sidebar is closed by default
   React.useEffect(() => {
@@ -42,6 +47,14 @@ const Index = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  const handleLogout = () => {
+    logout();
+    toast({
+      title: "Logged out",
+      description: "You have been logged out successfully",
+    });
+  };
+
   const showComingSoonToast = () => {
     toast({
       title: "Coming Soon",
@@ -57,7 +70,7 @@ const Index = () => {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Navigation sidebar */}
       <div className="w-16 border-r border-border flex flex-col items-center py-4 bg-card animate-fade-in">
-        <div className="flex flex-col items-center space-y-4">
+        <div className="flex-1 flex flex-col items-center space-y-4">
           <Button
             variant="ghost"
             size="icon"
@@ -95,6 +108,16 @@ const Index = () => {
             <Settings className="h-5 w-5" />
           </Button>
         </div>
+        
+        {/* Logout button at bottom */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full h-10 w-10 text-muted-foreground hover:text-foreground mt-auto"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-5 w-5" />
+        </Button>
       </div>
       
       {/* Conversations list */}
@@ -108,6 +131,7 @@ const Index = () => {
             conversations={conversations} 
             selectedConversationId={selectedConversation?.id || null}
             onSelectConversation={handleSelectConversation}
+            currentUserId={currentUser?.id || ''}
           />
         )}
       </div>

@@ -3,24 +3,25 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Conversation, Message, Reaction, User } from '@/types/chat';
 import { 
   initDatabase, 
-  seedDatabase, 
   getAllConversations, 
   getConversation, 
   addMessageToConversation, 
   markConversationAsRead,
-  addReactionToMessage
+  addReactionToMessage,
+  saveConversation
 } from '@/utils/database';
-import { conversations as initialConversations, currentUser, users as initialUsers } from '@/data/conversations';
+import { getOtherParticipant } from '@/data/conversations';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 interface MessagingContextType {
-  currentUser: User;
   conversations: Conversation[];
   selectedConversation: Conversation | null;
   isLoading: boolean;
   selectConversation: (conversationId: string) => void;
   sendMessage: (text: string) => Promise<void>;
   addReaction: (messageId: string, emoji: string) => Promise<void>;
+  startNewConversation: (userId: string) => Promise<void>;
 }
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
@@ -31,6 +32,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const { toast } = useToast();
+  const { currentUser, isAuthenticated } = useAuth();
 
   // Initialize database
   useEffect(() => {
@@ -38,16 +40,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const initialized = await initDatabase();
         if (initialized) {
-          const existingConversations = await getAllConversations();
-          
-          // If no conversations exist, seed the database
-          if (existingConversations.length === 0) {
-            await seedDatabase(initialUsers, initialConversations);
-            setConversations(initialConversations);
-          } else {
-            setConversations(existingConversations);
-          }
-          
           setIsDbInitialized(true);
         }
       } catch (error) {
@@ -65,8 +57,38 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     initialize();
   }, [toast]);
 
+  // Load conversations when user is authenticated
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!isAuthenticated || !currentUser || !isDbInitialized) return;
+      
+      setIsLoading(true);
+      try {
+        const allConversations = await getAllConversations();
+        // Filter conversations for current user
+        const userConversations = allConversations.filter(conv => 
+          conv.participants.some(p => p.id === currentUser.id)
+        );
+        setConversations(userConversations);
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load your conversations.',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadConversations();
+  }, [currentUser, isAuthenticated, isDbInitialized, toast]);
+
   // Select conversation by ID
   const selectConversation = async (conversationId: string) => {
+    if (!currentUser) return;
+    
     setIsLoading(true);
     try {
       const conversation = await getConversation(conversationId);
@@ -100,7 +122,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Send a message
   const sendMessage = async (text: string) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || !currentUser) return;
     
     const newMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -126,9 +148,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             conv.id === selectedConversation.id ? updatedConversation : conv
           )
         );
-        
-        // Simulate other user typing
-        simulateReply(updatedConversation);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -140,49 +159,9 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // Simulate reply from other user
-  const simulateReply = (conversation: Conversation) => {
-    if (!conversation) return;
-    
-    const otherUser = conversation.participants.find(p => p.id !== currentUser.id);
-    if (!otherUser) return;
-    
-    // Show typing indicator
-    setTimeout(async () => {
-      const replyMessage: Message = {
-        id: `msg-${Date.now()}`,
-        senderId: otherUser.id,
-        text: getRandomResponse(conversation.messages[conversation.messages.length - 1].text),
-        timestamp: new Date(),
-        read: true,
-        type: 'text'
-      };
-      
-      try {
-        const updatedConversation = await addMessageToConversation(
-          conversation.id, 
-          replyMessage
-        );
-        
-        if (updatedConversation) {
-          setSelectedConversation(updatedConversation);
-          
-          // Update conversation in list
-          setConversations(prevConversations => 
-            prevConversations.map(conv => 
-              conv.id === conversation.id ? updatedConversation : conv
-            )
-          );
-        }
-      } catch (error) {
-        console.error('Error simulating reply:', error);
-      }
-    }, 1500 + Math.random() * 3000);
-  };
-
   // Add a reaction to a message
   const addReaction = async (messageId: string, emoji: string) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || !currentUser) return;
     
     const reaction: Reaction = {
       emoji,
@@ -216,16 +195,73 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  // Start a new conversation with another user
+  const startNewConversation = async (userId: string) => {
+    if (!currentUser) return;
+    
+    try {
+      // Check if conversation already exists
+      const existingConv = conversations.find(conv => 
+        conv.participants.some(p => p.id === userId) && 
+        conv.participants.some(p => p.id === currentUser.id)
+      );
+      
+      if (existingConv) {
+        // If conversation exists, select it
+        selectConversation(existingConv.id);
+        return;
+      }
+      
+      // Get the other user (would need to be implemented in database.ts)
+      const otherUser = await getUser(userId);
+      
+      if (!otherUser) {
+        toast({
+          title: 'User Not Found',
+          description: 'Could not find the user to start a conversation with.',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      // Create new conversation
+      const newConversation: Conversation = {
+        id: `conversation-${Date.now()}`,
+        participants: [currentUser, otherUser],
+        messages: [],
+        lastMessageText: 'Start a new conversation',
+        lastMessageTime: new Date(),
+        unreadCount: 0
+      };
+      
+      const savedConversation = await saveConversation(newConversation);
+      
+      // Add to conversations list
+      setConversations(prev => [...prev, savedConversation]);
+      
+      // Select the new conversation
+      setSelectedConversation(savedConversation);
+      
+    } catch (error) {
+      console.error('Error starting new conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not start a new conversation.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   return (
     <MessagingContext.Provider
       value={{
-        currentUser,
         conversations,
         selectedConversation,
         isLoading,
         selectConversation,
         sendMessage,
-        addReaction
+        addReaction,
+        startNewConversation
       }}
     >
       {children}
@@ -241,35 +277,13 @@ export const useMessaging = () => {
   return context;
 };
 
-// Helper function for random responses
-function getRandomResponse(input: string): string {
-  const responses = [
-    "That's interesting! Tell me more.",
-    "I see what you mean.",
-    "I was just thinking about that!",
-    "Good point. Have you considered...",
-    "I completely agree with you.",
-    "That reminds me of something I read recently.",
-    "I hadn't thought about it that way before.",
-    "Let's discuss this more when we meet.",
-    "Thanks for sharing that with me.",
-    "I'll have to think about that."
-  ];
-  
-  // Simple keyword matching for slightly more contextual responses
-  if (input.match(/\b(hi|hello|hey)\b/i)) {
-    return "Hi there! How are you doing today?";
-  } else if (input.match(/\b(how are you|how's it going)\b/i)) {
-    return "I'm doing well, thanks for asking! How about you?";
-  } else if (input.match(/\b(yes|yeah|yep)\b/i)) {
-    return "Great! I'm glad we're on the same page.";
-  } else if (input.match(/\b(no|nope|nah)\b/i)) {
-    return "I understand. Maybe we should look at other options?";
-  } else if (input.match(/\b(thanks|thank you)\b/i)) {
-    return "You're welcome! Happy to help.";
-  } else if (input.match(/\b(bye|goodbye|see you)\b/i)) {
-    return "Talk to you later! Have a great day.";
+// Helper function to get user - this would need to be implemented in the database.ts file
+async function getUser(userId: string): Promise<User | null> {
+  try {
+    // This should use the database.getUser function
+    return null; // Placeholder, will be replaced by actual implementation
+  } catch (error) {
+    console.error('Error getting user:', error);
+    return null;
   }
-  
-  return responses[Math.floor(Math.random() * responses.length)];
 }
