@@ -10,10 +10,12 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { 
     conversations, 
@@ -53,6 +55,11 @@ const Index = () => {
       title: "Logged out",
       description: "You have been logged out successfully",
     });
+    navigate('/auth');
+  };
+
+  const goToSettings = () => {
+    navigate('/settings');
   };
 
   const showComingSoonToast = () => {
@@ -103,7 +110,7 @@ const Index = () => {
             variant="ghost"
             size="icon"
             className="rounded-full h-10 w-10 text-muted-foreground hover:text-foreground"
-            onClick={showComingSoonToast}
+            onClick={goToSettings}
           >
             <Settings className="h-5 w-5" />
           </Button>
