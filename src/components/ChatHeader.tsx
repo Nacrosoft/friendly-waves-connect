@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { User } from '@/types/chat';
 import { useMessaging } from '@/context/MessagingContext';
+import { motion } from 'framer-motion';
 
 interface ChatHeaderProps {
   user: User;
@@ -29,22 +30,29 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
   };
   
   return (
-    <div className="p-3 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between">
+    <motion.div 
+      className="p-3 border-b border-border bg-card/90 backdrop-blur-md flex items-center justify-between"
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="flex items-center gap-3">
         {isMobile && onBackClick && (
-          <Button variant="ghost" size="icon" onClick={onBackClick} className="mr-1">
+          <Button variant="ghost" size="icon" onClick={onBackClick} className="mr-1 hover:bg-accent/30">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
         
-        <UserAvatar user={user} />
+        <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
+          <UserAvatar user={user} />
+        </motion.div>
         
         <div className="flex flex-col">
           <span className="font-medium">{user.name || 'Unknown User'}</span>
           <span className="text-xs text-muted-foreground">
             {isOnline ? (
               <span className="flex items-center">
-                <span className="h-2 w-2 bg-green-500 rounded-full mr-1"></span>
+                <span className="h-2 w-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
                 Online
               </span>
             ) : (
@@ -55,16 +63,22 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       </div>
       
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" onClick={handleVoiceCall}>
-          <Phone className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={handleVideoCall}>
-          <Video className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon">
-          <Info className="h-5 w-5" />
-        </Button>
+        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+          <Button variant="ghost" size="icon" onClick={handleVoiceCall} className="hover:bg-accent/30">
+            <Phone className="h-5 w-5" />
+          </Button>
+        </motion.div>
+        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+          <Button variant="ghost" size="icon" onClick={handleVideoCall} className="hover:bg-accent/30">
+            <Video className="h-5 w-5" />
+          </Button>
+        </motion.div>
+        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+          <Button variant="ghost" size="icon" className="hover:bg-accent/30">
+            <Info className="h-5 w-5" />
+          </Button>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
