@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StoriesRow } from '@/components/story/StoriesRow';
 import { StoryProvider } from '@/context/StoryContext';
+import { StoryViewer } from '@/components/story/StoryViewer';
 
 const Status = () => {
   return (
@@ -19,6 +20,9 @@ const Status = () => {
           <StoriesRow />
         </div>
       </div>
+      
+      {/* Story viewer component */}
+      <StoryViewer />
     </StoryProvider>
   );
 };

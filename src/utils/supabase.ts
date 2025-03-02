@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, Conversation, Message, Reaction, CustomEmoji } from '@/types/chat';
+import { User, Conversation, Message, Reaction, CustomEmoji, Story } from '@/types/chat';
 import { env } from '@/env';
 
 // Supabase configuration
@@ -477,5 +477,115 @@ export const updateUserInSupabase = async (user: User): Promise<User> => {
   } catch (error) {
     handleDBError(error, 'update user');
     return user;
+  }
+};
+
+export const saveStoryToSupabase = async (story: Story): Promise<Story> => {
+  try {
+    const { error } = await supabase
+      .from('stories')
+      .insert({
+        id: story.id,
+        user_id: story.userId,
+        content: story.content,
+        media_url: story.type !== 'text' ? story.content : null,
+        created_at: new Date(story.createdAt).toISOString(),
+        expires_at: new Date(story.expiresAt).toISOString(),
+        viewers: story.viewers || []
+      });
+    
+    if (error) handleDBError(error, 'save story');
+    
+    return story;
+  } catch (error) {
+    handleDBError(error, 'save story');
+    return story;
+  }
+};
+
+export const getStoriesForUserFromSupabase = async (userId: string): Promise<Story[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+    
+    if (error) handleDBError(error, 'get stories for user');
+    
+    return (data || []).map(story => ({
+      id: story.id,
+      userId: story.user_id,
+      type: story.media_url && (story.media_url.endsWith('.mp4') || story.media_url.endsWith('.mov')) ? 'video' : 
+             story.media_url ? 'image' : 'text',
+      content: story.media_url || story.content,
+      createdAt: new Date(story.created_at),
+      expiresAt: new Date(story.expires_at),
+      viewers: story.viewers || [],
+      bgColor: !story.media_url ? '#1e1e1e' : undefined
+    }));
+  } catch (error) {
+    handleDBError(error, 'get stories for user');
+    return [];
+  }
+};
+
+export const getAllStoriesFromSupabase = async (): Promise<Story[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('stories')
+      .select('*')
+      .gte('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+    
+    if (error) handleDBError(error, 'get all stories');
+    
+    return (data || []).map(story => ({
+      id: story.id,
+      userId: story.user_id,
+      type: story.media_url && (story.media_url.endsWith('.mp4') || story.media_url.endsWith('.mov')) ? 'video' : 
+             story.media_url ? 'image' : 'text',
+      content: story.media_url || story.content,
+      createdAt: new Date(story.created_at),
+      expiresAt: new Date(story.expires_at),
+      viewers: story.viewers || [],
+      bgColor: !story.media_url ? '#1e1e1e' : undefined
+    }));
+  } catch (error) {
+    handleDBError(error, 'get all stories');
+    return [];
+  }
+};
+
+export const updateStoryViewersInSupabase = async (storyId: string, viewerId: string): Promise<boolean> => {
+  try {
+    // First get the current story to check if viewer is already in the list
+    const { data: storyData, error: fetchError } = await supabase
+      .from('stories')
+      .select('viewers')
+      .eq('id', storyId)
+      .single();
+    
+    if (fetchError) handleDBError(fetchError, 'fetch story viewers');
+    
+    const currentViewers = storyData?.viewers || [];
+    
+    // Only add the viewer if they haven't viewed it already
+    if (!currentViewers.includes(viewerId)) {
+      const newViewers = [...currentViewers, viewerId];
+      
+      const { error } = await supabase
+        .from('stories')
+        .update({ viewers: newViewers })
+        .eq('id', storyId);
+      
+      if (error) handleDBError(error, 'update story viewers');
+    }
+    
+    return true;
+  } catch (error) {
+    handleDBError(error, 'update story viewers');
+    return false;
   }
 };

@@ -194,6 +194,44 @@ export type Database = {
           },
         ]
       }
+      stories: {
+        Row: {
+          content: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          media_url: string | null
+          user_id: string | null
+          viewers: string[] | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          expires_at?: string | null
+          id: string
+          media_url?: string | null
+          user_id?: string | null
+          viewers?: string[] | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          media_url?: string | null
+          user_id?: string | null
+          viewers?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           avatar: string | null

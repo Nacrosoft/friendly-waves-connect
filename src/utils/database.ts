@@ -1,4 +1,4 @@
-import { Conversation, Message, Reaction, User, CustomEmoji, Call } from '@/types/chat';
+import { Conversation, Message, Reaction, User, CustomEmoji, Call, Story } from '@/types/chat';
 import {
   saveUserToSupabase,
   getUserFromSupabase,
@@ -15,7 +15,11 @@ import {
   editMessageInSupabase,
   deleteMessageInSupabase,
   updateUserInSupabase,
-  supabase
+  supabase,
+  saveStoryToSupabase,
+  getStoriesForUserFromSupabase,
+  getAllStoriesFromSupabase,
+  updateStoryViewersInSupabase
 } from './supabase';
 
 export const initDatabase = async (): Promise<boolean> => {
@@ -198,4 +202,20 @@ export const getActiveCalls = async (userId: string): Promise<Call[]> => {
     console.error('Error getting active calls:', error);
     throw error;
   }
+};
+
+export const saveStory = async (story: Story): Promise<Story> => {
+  return await saveStoryToSupabase(story);
+};
+
+export const getStoriesForUser = async (userId: string): Promise<Story[]> => {
+  return await getStoriesForUserFromSupabase(userId);
+};
+
+export const getAllStories = async (): Promise<Story[]> => {
+  return await getAllStoriesFromSupabase();
+};
+
+export const updateStoryViewers = async (storyId: string, viewerId: string): Promise<boolean> => {
+  return await updateStoryViewersInSupabase(storyId, viewerId);
 };

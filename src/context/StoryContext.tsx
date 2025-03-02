@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Story, User } from '@/types/chat';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { saveStory, getStoriesForUser, getAllStories, updateStoryViewers } from '@/utils/database';
 
 interface StoryContextType {
   stories: Story[];
@@ -17,6 +18,7 @@ interface StoryContextType {
   getStoriesForUser: (userId: string) => Story[];
   closeStory: () => void;
   getUsersWithStories: () => User[];
+  loadStories: () => Promise<void>;
 }
 
 const StoryContext = createContext<StoryContextType | undefined>(undefined);
@@ -32,30 +34,28 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load all stories on init
   useEffect(() => {
-    if (!allUsers) return;
-
-    const allStories: Story[] = [];
-    allUsers.forEach(user => {
-      if (user.stories && user.stories.length > 0) {
-        allStories.push(...user.stories);
-      }
-    });
-
-    // Sort by creation date, newest first
-    allStories.sort((a, b) => {
-      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-      return dateB.getTime() - dateA.getTime();
-    });
-    
-    // Remove expired stories
-    const filteredStories = allStories.filter(story => {
-      const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
-      return expiryDate.getTime() > Date.now();
-    });
-    
-    setStories(filteredStories);
+    if (allUsers) {
+      loadStories();
+    }
   }, [allUsers]);
+
+  const loadStories = async () => {
+    try {
+      const allDbStories = await getAllStories();
+      
+      // Filter to only include non-expired stories
+      const filteredStories = allDbStories.filter(story => {
+        const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
+        return expiryDate.getTime() > Date.now();
+      });
+      
+      setStories(filteredStories);
+      return filteredStories;
+    } catch (error) {
+      console.error("Error loading stories:", error);
+      return [];
+    }
+  };
 
   const createStory = async (type: 'image' | 'video' | 'text', content: string, bgColor?: string) => {
     if (!currentUser) {
@@ -79,14 +79,9 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         viewers: []
       };
 
-      // Update the user with the new story
-      if (!currentUser.stories) {
-        currentUser.stories = [];
-      }
+      // Save the story to the database
+      await saveStory(newStory);
       
-      currentUser.stories.push(newStory);
-      await updateUser(currentUser);
-
       // Update local state
       setStories(prev => [newStory, ...prev]);
       
@@ -111,11 +106,11 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!currentUser) return;
 
     try {
-      const userStories = getStoriesForUser(userId);
-      if (userStories.length === 0) return;
+      const userDbStories = await getStoriesForUser(userId);
+      if (userDbStories.length === 0) return;
       
       // View the first story
-      const story = userStories[0];
+      const story = userDbStories[0];
       const user = allUsers?.find(u => u.id === userId);
       
       if (story && user) {
@@ -137,55 +132,38 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Helper function to mark a story as viewed
-  const markStoryAsViewed = (story: Story) => {
+  const markStoryAsViewed = async (story: Story) => {
     if (!currentUser) return;
     
-    // Update the story viewers
-    story.viewers.push(currentUser.id);
-    
-    // Update the story in the user's stories array
-    const storyOwner = allUsers?.find(user => user.id === story.userId);
-    if (storyOwner && storyOwner.stories) {
-      const storyIndex = storyOwner.stories.findIndex(s => s.id === story.id);
-      if (storyIndex !== -1) {
-        storyOwner.stories[storyIndex] = story;
-        updateUser(storyOwner);
-      }
+    try {
+      // Update the story viewers in the database
+      await updateStoryViewers(story.id, currentUser.id);
+      
+      // Update local state
+      setStories(prev => 
+        prev.map(s => 
+          s.id === story.id 
+            ? { ...s, viewers: [...s.viewers, currentUser.id] } 
+            : s
+        )
+      );
+    } catch (error) {
+      console.error("Error marking story as viewed:", error);
     }
-    
-    // Update local state
-    setStories(prev => prev.map(s => s.id === story.id ? story : s));
   };
 
-  const getStoriesForUser = (userId: string): Story[] => {
-    const user = allUsers?.find(u => u.id === userId);
-    if (!user || !user.stories) return [];
-    
-    // Filter out expired stories
-    return user.stories.filter(story => {
-      const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
-      return expiryDate.getTime() > Date.now();
-    }).sort((a, b) => {
-      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-      return dateB.getTime() - dateA.getTime();
-    });
+  const getStoriesForUserFromContext = (userId: string): Story[] => {
+    return stories.filter(story => story.userId === userId);
   };
 
   const getUsersWithStories = (): User[] => {
     if (!allUsers) return [];
     
-    return allUsers.filter(user => {
-      // Check if user has any non-expired stories
-      if (!user.stories || user.stories.length === 0) return false;
-      
-      const hasValidStories = user.stories.some(story => {
-        const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
-        return expiryDate.getTime() > Date.now();
-      });
-      
-      return hasValidStories;
-    });
+    // Get unique user IDs from stories
+    const userIdsWithStories = [...new Set(stories.map(story => story.userId))];
+    
+    // Return users that have stories
+    return allUsers.filter(user => userIdsWithStories.includes(user.id));
   };
 
   const closeStory = () => {
@@ -206,9 +184,10 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsCreatingStory,
         createStory,
         viewStory,
-        getStoriesForUser,
+        getStoriesForUser: getStoriesForUserFromContext,
         closeStory,
-        getUsersWithStories
+        getUsersWithStories,
+        loadStories
       }}
     >
       {children}
