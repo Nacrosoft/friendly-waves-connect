@@ -7,6 +7,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { User } from '@/types/chat';
 import { useMessaging } from '@/context/MessagingContext';
 import { motion } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatHeaderProps {
   user: User;
@@ -16,17 +17,44 @@ interface ChatHeaderProps {
 export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { initiateCall } = useMessaging();
+  const { toast } = useToast();
   
   if (!user) return null;
   
   const isOnline = user.status === 'online';
 
-  const handleVoiceCall = () => {
-    initiateCall(user.id, false);
+  const handleVoiceCall = async () => {
+    try {
+      await initiateCall(user.id, false);
+      toast({
+        title: 'Starting Call',
+        description: `Calling ${user.name}...`,
+      });
+    } catch (error) {
+      console.error('Voice call error:', error);
+      toast({
+        title: 'Call Failed',
+        description: 'Could not initiate the call. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const handleVideoCall = () => {
-    initiateCall(user.id, true);
+  const handleVideoCall = async () => {
+    try {
+      await initiateCall(user.id, true);
+      toast({
+        title: 'Starting Video Call',
+        description: `Video calling ${user.name}...`,
+      });
+    } catch (error) {
+      console.error('Video call error:', error);
+      toast({
+        title: 'Video Call Failed',
+        description: 'Could not initiate the video call. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
   
   return (

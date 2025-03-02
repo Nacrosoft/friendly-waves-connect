@@ -601,40 +601,32 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       throw new Error('User not authenticated');
     }
     
-    const recipient = await getUser(recipientId);
-    if (!recipient) {
-      throw new Error('Recipient not found');
-    }
-    
-    const newCall: Call = {
-      id: `call-${Date.now()}`,
-      callerId: currentUser.id,
-      caller: currentUser,
-      recipientId: recipient.id,
-      recipient: recipient,
-      status: 'pending',
-      startTime: new Date(),
-      isVideo
-    };
-    
     try {
+      const recipient = await getUser(recipientId);
+      if (!recipient) {
+        throw new Error('Recipient not found');
+      }
+      
+      const newCall: Call = {
+        id: `call-${Date.now()}`,
+        callerId: currentUser.id,
+        caller: currentUser,
+        recipientId: recipient.id,
+        recipient: recipient,
+        status: 'pending',
+        startTime: new Date(),
+        isVideo
+      };
+      
+      console.log('Initiating call with:', newCall);
+      
       const savedCall = await saveCall(newCall);
       
       setActiveCall(savedCall);
       
-      toast({
-        title: 'Calling...',
-        description: `Calling ${recipient.name}`,
-      });
-      
       return savedCall;
     } catch (error) {
       console.error('Error initiating call:', error);
-      toast({
-        title: 'Call Failed',
-        description: 'Could not initiate the call. Please try again.',
-        variant: 'destructive'
-      });
       throw error;
     }
   };
@@ -650,6 +642,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: 'active'
       };
       
+      console.log('Accepting call:', updatedCall);
+      
       const savedCall = await updateCall(updatedCall);
       
       setActiveCall(savedCall);
@@ -663,11 +657,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return savedCall;
     } catch (error) {
       console.error('Error accepting call:', error);
-      toast({
-        title: 'Call Error',
-        description: 'Could not accept the call. Please try again.',
-        variant: 'destructive'
-      });
       throw error;
     }
   };
@@ -684,6 +673,8 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         endTime: new Date()
       };
       
+      console.log('Declining call:', updatedCall);
+      
       await updateCall(updatedCall);
       
       setIncomingCall(null);
@@ -694,11 +685,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     } catch (error) {
       console.error('Error declining call:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not decline the call.',
-        variant: 'destructive'
-      });
       throw error;
     }
   };
@@ -715,16 +701,13 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         endTime: new Date()
       };
       
+      console.log('Ending call:', updatedCall);
+      
       await updateCall(updatedCall);
       
       setActiveCall(null);
     } catch (error) {
       console.error('Error ending call:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not end the call.',
-        variant: 'destructive'
-      });
       throw error;
     }
   };
@@ -735,7 +718,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     
     try {
-      // Check if a conversation already exists with these participants
       const existingConv = conversations.find(conv => {
         const participantIds = conv.participants.map(p => p.id);
         return participants.every(p => participantIds.includes(p.id));

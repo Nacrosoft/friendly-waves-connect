@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Story, User } from '@/types/chat';
 import { useAuth } from '@/context/AuthContext';
@@ -19,6 +18,7 @@ interface StoryContextType {
   closeStory: () => void;
   getUsersWithStories: () => User[];
   loadStories: () => Promise<void>;
+  refreshStories: () => Promise<void>;
 }
 
 const StoryContext = createContext<StoryContextType | undefined>(undefined);
@@ -32,7 +32,6 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { currentUser, allUsers, updateUser } = useAuth();
   const { toast } = useToast();
 
-  // Load all stories on init
   useEffect(() => {
     if (allUsers) {
       loadStories();
@@ -43,7 +42,6 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const allDbStories = await getAllStories();
       
-      // Filter to only include non-expired stories
       const filteredStories = allDbStories.filter(story => {
         const expiryDate = story.expiresAt instanceof Date ? story.expiresAt : new Date(story.expiresAt);
         return expiryDate.getTime() > Date.now();
@@ -79,10 +77,8 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         viewers: []
       };
 
-      // Save the story to the database
       await saveStory(newStory);
       
-      // Update local state
       setStories(prev => [newStory, ...prev]);
       
       toast({
@@ -90,7 +86,6 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         description: "Your story has been published and will be available for 24 hours"
       });
       
-      // Close the story creator
       setIsCreatingStory(false);
     } catch (error) {
       console.error("Error creating story:", error);
@@ -109,7 +104,6 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const userDbStories = await getStoriesForUser(userId);
       if (userDbStories.length === 0) return;
       
-      // View the first story
       const story = userDbStories[0];
       const user = allUsers?.find(u => u.id === userId);
       
@@ -121,7 +115,6 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Helper function to handle setting the viewing story state
   const setViewingStoryState = (story: Story | null, user: User | null, index: number) => {
     setViewingStory(story);
     setViewingStoryUser(user);
@@ -131,15 +124,12 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Helper function to mark a story as viewed
   const markStoryAsViewed = async (story: Story) => {
     if (!currentUser) return;
     
     try {
-      // Update the story viewers in the database
       await updateStoryViewers(story.id, currentUser.id);
       
-      // Update local state
       setStories(prev => 
         prev.map(s => 
           s.id === story.id 
@@ -159,10 +149,8 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getUsersWithStories = (): User[] => {
     if (!allUsers) return [];
     
-    // Get unique user IDs from stories
     const userIdsWithStories = [...new Set(stories.map(story => story.userId))];
     
-    // Return users that have stories
     return allUsers.filter(user => userIdsWithStories.includes(user.id));
   };
 
@@ -170,6 +158,16 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setViewingStory(null);
     setViewingStoryUser(null);
     setViewingStoryIndex(0);
+  };
+
+  const refreshStories = async (): Promise<void> => {
+    try {
+      await loadStories();
+      return;
+    } catch (error) {
+      console.error('Failed to refresh stories:', error);
+      return;
+    }
   };
 
   return (
@@ -187,7 +185,8 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         getStoriesForUser: getStoriesForUserFromContext,
         closeStory,
         getUsersWithStories,
-        loadStories
+        loadStories,
+        refreshStories
       }}
     >
       {children}

@@ -6,6 +6,7 @@ import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { useMessaging } from '@/context/MessagingContext';
 import { Call, User } from '@/types/chat';
 import { UserAvatar } from './UserAvatar';
+import { useToast } from '@/hooks/use-toast';
 
 interface CallModalProps {
   incomingCall: Call | null;
@@ -17,6 +18,7 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const { toast } = useToast();
   
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -45,8 +47,17 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
     if (incomingCall) {
       try {
         await acceptCall(incomingCall.id);
+        toast({
+          title: "Call Accepted",
+          description: `You are now in a call with ${incomingCall.caller.name}`,
+        });
       } catch (error) {
         console.error('Error accepting call:', error);
+        toast({
+          title: "Call Error",
+          description: "Failed to accept the call. Please try again.",
+          variant: "destructive"
+        });
       }
     }
   };
@@ -55,8 +66,17 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
     if (incomingCall) {
       try {
         await declineCall(incomingCall.id);
+        toast({
+          title: "Call Declined",
+          description: "You declined the incoming call",
+        });
       } catch (error) {
         console.error('Error declining call:', error);
+        toast({
+          title: "Error",
+          description: "Failed to decline the call",
+          variant: "destructive"
+        });
       }
     }
   };
@@ -65,18 +85,35 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
     if (activeCall) {
       try {
         await endCall(activeCall.id);
+        toast({
+          title: "Call Ended",
+          description: `Call duration: ${formatTime(callDuration)}`,
+        });
       } catch (error) {
         console.error('Error ending call:', error);
+        toast({
+          title: "Error",
+          description: "Failed to end the call properly",
+          variant: "destructive"
+        });
       }
     }
   };
   
   const toggleMute = () => {
     setIsMuted(!isMuted);
+    toast({
+      title: isMuted ? "Microphone Unmuted" : "Microphone Muted",
+      description: isMuted ? "Others can now hear you" : "Others cannot hear you",
+    });
   };
   
   const toggleVideo = () => {
     setIsVideoOff(!isVideoOff);
+    toast({
+      title: isVideoOff ? "Video Turned On" : "Video Turned Off",
+      description: isVideoOff ? "Others can now see you" : "Others cannot see you",
+    });
   };
   
   const renderIncomingCall = () => {
@@ -121,9 +158,9 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
   const renderActiveCall = () => {
     if (!activeCall) return null;
     
-    const otherParticipant = activeCall.callerId === (activeCall.caller?.id || '') 
-      ? activeCall.recipient 
-      : activeCall.caller;
+    const otherParticipant = activeCall.caller && activeCall.recipient ? 
+      (activeCall.callerId === activeCall.caller.id ? activeCall.recipient : activeCall.caller) : 
+      { name: "Unknown User" } as User;
     
     return (
       <Dialog open={!!activeCall} onOpenChange={() => {}}>

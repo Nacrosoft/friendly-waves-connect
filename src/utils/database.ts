@@ -117,6 +117,10 @@ export const updateUser = async (user: User): Promise<User> => {
 
 export const saveCall = async (call: Call): Promise<Call> => {
   try {
+    if (!call.caller || !call.recipient) {
+      throw new Error('Call must have both caller and recipient');
+    }
+    
     const { data, error } = await supabase
       .from('calls')
       .insert({
@@ -131,7 +135,10 @@ export const saveCall = async (call: Call): Promise<Call> => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error details:', error);
+      throw error;
+    }
     
     console.log('Call saved successfully:', data);
     return call;
@@ -153,7 +160,10 @@ export const updateCall = async (call: Call): Promise<Call> => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Update call error details:', error);
+      throw error;
+    }
     
     console.log('Call updated successfully:', data);
     return call;
@@ -172,7 +182,10 @@ export const getActiveCalls = async (userId: string): Promise<Call[]> => {
       .in('status', ['pending', 'active'])
       .order('start_time', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Get active calls error:', error);
+      throw error;
+    }
     
     if (!data || data.length === 0) return [];
     
