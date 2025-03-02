@@ -66,7 +66,7 @@ export function DesktopSidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{currentUser.name || 'User'}</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">{currentUser.email || ''}</p>
+              <p className="text-xs text-sidebar-foreground/60 truncate">{currentUser.id}</p>
             </div>
           </div>
         </div>

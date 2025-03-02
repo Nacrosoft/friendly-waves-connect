@@ -17,7 +17,7 @@ interface StoryContextType {
   getStoriesForUser: (userId: string) => Story[];
   closeStory: () => void;
   getUsersWithStories: () => User[];
-  loadStories: () => Promise<void>;
+  loadStories: () => Promise<Story[]>;
   refreshStories: () => Promise<void>;
 }
 
@@ -163,10 +163,8 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const refreshStories = async (): Promise<void> => {
     try {
       await loadStories();
-      return;
     } catch (error) {
       console.error('Failed to refresh stories:', error);
-      return;
     }
   };
 
