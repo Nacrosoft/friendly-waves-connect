@@ -5,6 +5,7 @@ import { Story, User } from '@/types/chat';
 import { useStory } from '@/context/StoryContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 interface StoryCircleProps {
   user: User;
@@ -63,10 +64,10 @@ export function StoryCircle({
   
   // For the gradient ring effect when has stories
   const storyRingClasses = cn(
-    "rounded-full",
+    "rounded-full flex items-center justify-center",
     sizeClasses[size].ring,
     hasUnviewedStories 
-      ? "bg-gradient-to-tr from-blue-500 via-purple-500 to-pink-500" 
+      ? "bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 animate-pulse-subtle" 
       : hasStories 
         ? "bg-gray-300 dark:bg-gray-600" 
         : "bg-transparent",
@@ -83,14 +84,16 @@ export function StoryCircle({
   
   return (
     <div className="flex flex-col items-center">
-      <div 
-        className={cn("flex items-center justify-center cursor-pointer", sizeClasses[size].wrapper)}
+      <motion.div 
+        className={cn("flex items-center justify-center cursor-pointer transition-transform duration-300", sizeClasses[size].wrapper)}
         onClick={handleClick}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
       >
         <div className={storyRingClasses}>
-          <Avatar className={cn("border-2 border-background", sizeClasses[size].avatar)}>
+          <Avatar className={cn("border-2 border-background shadow-md", sizeClasses[size].avatar)}>
             <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+            <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20">{user.name.substring(0, 2)}</AvatarFallback>
           </Avatar>
           
           {isCreateStory && (
@@ -99,10 +102,10 @@ export function StoryCircle({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
       
       {showName && (
-        <span className="text-xs mt-1 text-center truncate w-full">
+        <span className="text-xs mt-1 text-center truncate w-full font-medium">
           {isCreateStory ? "Your Story" : user.name}
         </span>
       )}
