@@ -1,7 +1,8 @@
 
-import React, { ReactNode, ChangeEvent } from 'react';
+import React, { ReactNode, ChangeEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { env } from '@/env';
 
 interface AuthFormWrapperProps {
   children: ReactNode;
@@ -18,6 +19,20 @@ export const AuthFormWrapper = ({
   onInputChange,
   inputValue = ''
 }: AuthFormWrapperProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Handle the quick access button click
+  const handleQuickLogin = async () => {
+    if (onButtonClick) {
+      setIsLoading(true);
+      try {
+        onButtonClick();
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {children}
@@ -35,10 +50,11 @@ export const AuthFormWrapper = ({
             />
           </div>
           <Button 
-            onClick={onButtonClick} 
+            onClick={handleQuickLogin} 
             className="w-full sm:w-auto bg-[#6C63FF] hover:bg-[#5A52D5]"
+            disabled={isLoading}
           >
-            {buttonText}
+            {isLoading ? 'Processing...' : buttonText}
           </Button>
         </div>
       </div>

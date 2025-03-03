@@ -4,16 +4,60 @@ import { LoginForm } from '@/components/LoginForm';
 import { AuthFormWrapper } from '@/components/AuthFormWrapper';
 import { useAuth } from '@/context/AuthContext';
 import { User, LogIn } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/utils/supabase';
 
 const Login = () => {
   const { login } = useAuth();
   const [quickAccessCode, setQuickAccessCode] = useState('');
+  const { toast } = useToast();
+  const navigate = useNavigate();
   
-  const handleLogin = () => {
-    if (quickAccessCode) {
-      console.log("Quick access login requested with code:", quickAccessCode);
-      // Here you could implement the quick access login functionality
+  const handleLogin = async () => {
+    if (!quickAccessCode) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a quick access code',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    try {
+      // Attempt to fetch user by the quick access code from Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('stream_access_token', quickAccessCode)
+        .single();
+      
+      if (error || !data) {
+        console.error('Quick access error:', error);
+        toast({
+          title: 'Invalid Code',
+          description: 'The quick access code you entered is invalid',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      // If successful, log in the user with their credentials
+      const success = await login(data.name, data.password);
+      if (success) {
+        toast({
+          title: 'Logged in',
+          description: `Welcome back, ${data.name}!`
+        });
+        navigate('/chat');
+      }
+    } catch (error) {
+      console.error('Quick access login error:', error);
+      toast({
+        title: 'Login Failed',
+        description: 'An error occurred during login',
+        variant: 'destructive'
+      });
     }
   };
   
