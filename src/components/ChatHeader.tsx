@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { Phone, Video, Info, ArrowLeft } from 'lucide-react';
@@ -24,39 +23,19 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
   const isOnline = user.status === 'online';
 
   const handleVoiceCall = async () => {
-    try {
-      console.log('Initiating voice call with user:', user.id);
-      await initiateCall(user.id, false);
-      toast({
-        title: 'Starting Call',
-        description: `Calling ${user.name}...`,
-      });
-    } catch (error) {
-      console.error('Voice call error:', error);
-      toast({
-        title: 'Call Failed',
-        description: 'Could not initiate the call. Please check database configuration.',
-        variant: 'destructive'
-      });
-    }
+    toast({
+      title: 'Call Functionality Under Maintenance',
+      description: 'Voice calls are temporarily unavailable while we upgrade our systems. Please try again later.',
+      variant: 'default'
+    });
   };
 
   const handleVideoCall = async () => {
-    try {
-      console.log('Initiating video call with user:', user.id);
-      await initiateCall(user.id, true);
-      toast({
-        title: 'Starting Video Call',
-        description: `Video calling ${user.name}...`,
-      });
-    } catch (error) {
-      console.error('Video call error:', error);
-      toast({
-        title: 'Video Call Failed',
-        description: 'Could not initiate the video call. Please check database configuration.',
-        variant: 'destructive'
-      });
-    }
+    toast({
+      title: 'Call Functionality Under Maintenance',
+      description: 'Video calls are temporarily unavailable while we upgrade our systems. Please try again later.',
+      variant: 'default'
+    });
   };
   
   return (

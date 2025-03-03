@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, AlertTriangle } from 'lucide-react';
 import { useMessaging } from '@/context/MessagingContext';
 import { Call, User } from '@/types/chat';
 import { UserAvatar } from './UserAvatar';
@@ -45,20 +46,17 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
   const handleAcceptCall = async () => {
     if (!incomingCall) return;
     
+    toast({
+      title: "Call Functionality Under Maintenance",
+      description: "We're currently upgrading our call system. Please try again later.",
+      variant: "default"
+    });
+    
+    // Still decline the call to close the modal
     try {
-      console.log('Accepting call ID:', incomingCall.id);
-      await acceptCall(incomingCall.id);
-      toast({
-        title: "Call Accepted",
-        description: `You are now in a call with ${incomingCall.caller.name}`,
-      });
+      await declineCall(incomingCall.id);
     } catch (error) {
-      console.error('Error accepting call:', error);
-      toast({
-        title: "Call Error",
-        description: "Failed to accept the call. Please check database configuration.",
-        variant: "destructive"
-      });
+      console.error('Error declining call:', error);
     }
   };
   
@@ -66,7 +64,6 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
     if (!incomingCall) return;
     
     try {
-      console.log('Declining call ID:', incomingCall.id);
       await declineCall(incomingCall.id);
       toast({
         title: "Call Declined",
@@ -86,7 +83,6 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
     if (!activeCall) return;
     
     try {
-      console.log('Ending call ID:', activeCall.id);
       await endCall(activeCall.id);
       toast({
         title: "Call Ended",
@@ -105,16 +101,18 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
   const toggleMute = () => {
     setIsMuted(!isMuted);
     toast({
-      title: isMuted ? "Microphone Unmuted" : "Microphone Muted",
-      description: isMuted ? "Others can now hear you" : "Others cannot hear you",
+      title: "Call Functionality Under Maintenance",
+      description: "Audio controls are temporarily unavailable while we upgrade our systems.",
+      variant: "default"
     });
   };
   
   const toggleVideo = () => {
     setIsVideoOff(!isVideoOff);
     toast({
-      title: isVideoOff ? "Video Turned On" : "Video Turned Off",
-      description: isVideoOff ? "Others can now see you" : "Others cannot see you",
+      title: "Call Functionality Under Maintenance",
+      description: "Video controls are temporarily unavailable while we upgrade our systems.",
+      variant: "default"
     });
   };
   
@@ -127,8 +125,15 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
       <Dialog open={!!incomingCall} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center space-y-4 py-4">
+            <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full mb-2">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-500" />
+            </div>
             <h2 className="text-xl font-semibold">Incoming {incomingCall.isVideo ? 'Video' : 'Voice'} Call</h2>
-            <div className="rounded-full p-1 border-2 border-primary animate-pulse">
+            <p className="text-center text-muted-foreground mb-2">
+              Call functionality is currently under maintenance.
+              <br />You can decline this call or try again later.
+            </p>
+            <div className="rounded-full p-1 border-2 border-primary">
               <UserAvatar user={caller} className="h-24 w-24" />
             </div>
             <p className="text-lg font-medium">{caller.name}</p>
@@ -168,9 +173,16 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
       <Dialog open={!!activeCall} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center space-y-4 py-4">
+            <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full mb-2">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-500" />
+            </div>
             <h2 className="text-xl font-semibold">
               {activeCall.isVideo ? 'Video' : 'Voice'} Call
             </h2>
+            <p className="text-center text-muted-foreground mb-2">
+              Call functionality is currently under maintenance.
+              <br />You can end this call or try again later.
+            </p>
             <div className="rounded-full p-1 border-2 border-primary">
               <UserAvatar user={otherParticipant} className="h-24 w-24" />
             </div>
