@@ -1,3 +1,4 @@
+
 import { Conversation, Message, Reaction, User, CustomEmoji, Call, Story } from '@/types/chat';
 import {
   saveUserToSupabase,
@@ -121,6 +122,8 @@ export const saveCall = async (call: Call): Promise<Call> => {
       throw new Error('Call must have both caller and recipient');
     }
     
+    console.log('Saving call to database:', call);
+    
     const { data, error } = await supabase
       .from('calls')
       .insert({
@@ -150,6 +153,8 @@ export const saveCall = async (call: Call): Promise<Call> => {
 
 export const updateCall = async (call: Call): Promise<Call> => {
   try {
+    console.log('Updating call in database:', call);
+    
     const { data, error } = await supabase
       .from('calls')
       .update({
@@ -175,6 +180,8 @@ export const updateCall = async (call: Call): Promise<Call> => {
 
 export const getActiveCalls = async (userId: string): Promise<Call[]> => {
   try {
+    console.log('Getting active calls for user:', userId);
+    
     const { data, error } = await supabase
       .from('calls')
       .select('*')
@@ -186,6 +193,8 @@ export const getActiveCalls = async (userId: string): Promise<Call[]> => {
       console.error('Get active calls error:', error);
       throw error;
     }
+    
+    console.log('Active calls data from DB:', data);
     
     if (!data || data.length === 0) return [];
     
@@ -210,6 +219,7 @@ export const getActiveCalls = async (userId: string): Promise<Call[]> => {
       }
     }
     
+    console.log('Processed active calls:', calls);
     return calls;
   } catch (error) {
     console.error('Error getting active calls:', error);

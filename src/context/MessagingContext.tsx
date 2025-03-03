@@ -86,7 +86,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!isAuthenticated || !currentUser) return;
 
     const channel = supabase
-      .channel('public:calls')
+      .channel('calls-channel')
       .on('postgres_changes', 
         { 
           event: '*', 
@@ -103,55 +103,69 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
           
           if (callData.recipient_id === currentUser.id && callData.status === 'pending') {
-            const caller = await getUser(callData.caller_id);
-            if (caller) {
-              const newCall: Call = {
-                id: callData.id,
-                callerId: callData.caller_id,
-                caller: caller,
-                recipientId: callData.recipient_id,
-                recipient: currentUser,
-                status: callData.status,
-                startTime: new Date(callData.start_time),
-                endTime: callData.end_time ? new Date(callData.end_time) : undefined,
-                isVideo: callData.is_video
-              };
-              
-              setIncomingCall(newCall);
-              
-              const audio = new Audio('/call-ringtone.mp3');
-              audio.loop = true;
-              audio.play().catch(e => console.error('Error playing ringtone:', e));
-              
-              (window as any).callRingtone = audio;
-            }
-          } else if (callData.status === 'active' && 
-                    (callData.caller_id === currentUser.id || callData.recipient_id === currentUser.id)) {
-            const caller = await getUser(callData.caller_id);
-            const recipient = await getUser(callData.recipient_id);
-            
-            if (caller && recipient) {
-              const updatedCall: Call = {
-                id: callData.id,
-                callerId: callData.caller_id,
-                caller: caller,
-                recipientId: callData.recipient_id,
-                recipient: recipient,
-                status: callData.status,
-                startTime: new Date(callData.start_time),
-                endTime: callData.end_time ? new Date(callData.end_time) : undefined,
-                isVideo: callData.is_video
-              };
-              
-              setActiveCall(updatedCall);
-              setIncomingCall(null);
-              
-              if ((window as any).callRingtone) {
-                (window as any).callRingtone.pause();
-                (window as any).callRingtone = null;
+            try {
+              const caller = await getUser(callData.caller_id);
+              if (caller) {
+                const newCall: Call = {
+                  id: callData.id,
+                  callerId: callData.caller_id,
+                  caller: caller,
+                  recipientId: callData.recipient_id,
+                  recipient: currentUser,
+                  status: callData.status,
+                  startTime: new Date(callData.start_time),
+                  endTime: callData.end_time ? new Date(callData.end_time) : undefined,
+                  isVideo: callData.is_video
+                };
+                
+                console.log('Setting incoming call:', newCall);
+                setIncomingCall(newCall);
+                
+                const audio = new Audio('/call-ringtone.mp3');
+                audio.loop = true;
+                audio.play().catch(e => console.error('Error playing ringtone:', e));
+                
+                (window as any).callRingtone = audio;
               }
+            } catch (error) {
+              console.error('Error processing incoming call:', error);
             }
-          } else if (callData.status === 'ended' || callData.status === 'declined') {
+          } 
+          else if (callData.status === 'active' && 
+                    (callData.caller_id === currentUser.id || callData.recipient_id === currentUser.id)) {
+            try {
+              const caller = await getUser(callData.caller_id);
+              const recipient = await getUser(callData.recipient_id);
+              
+              if (caller && recipient) {
+                const updatedCall: Call = {
+                  id: callData.id,
+                  callerId: callData.caller_id,
+                  caller: caller,
+                  recipientId: callData.recipient_id,
+                  recipient: recipient,
+                  status: callData.status,
+                  startTime: new Date(callData.start_time),
+                  endTime: callData.end_time ? new Date(callData.end_time) : undefined,
+                  isVideo: callData.is_video
+                };
+                
+                console.log('Setting active call:', updatedCall);
+                setActiveCall(updatedCall);
+                setIncomingCall(null);
+                
+                if ((window as any).callRingtone) {
+                  (window as any).callRingtone.pause();
+                  (window as any).callRingtone = null;
+                }
+              }
+            } catch (error) {
+              console.error('Error processing active call:', error);
+            }
+          } 
+          else if ((callData.status === 'ended' || callData.status === 'declined') &&
+                  (callData.caller_id === currentUser.id || callData.recipient_id === currentUser.id)) {
+            console.log('Call ended or declined:', callData);
             if (incomingCall && incomingCall.id === callData.id) {
               setIncomingCall(null);
             }
@@ -166,10 +180,12 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Calls channel subscription status:', status);
+      });
 
     const messagesChannel = supabase
-      .channel('public:messages')
+      .channel('messages-channel')
       .on('postgres_changes', 
         { 
           event: '*', 
@@ -208,30 +224,36 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .subscribe();
 
     const checkPendingCalls = async () => {
-      const activeCalls = await getActiveCalls(currentUser.id);
-      console.log('Active calls for current user:', activeCalls);
-      
-      const pendingCall = activeCalls.find(call => 
-        call.recipientId === currentUser.id && call.status === 'pending'
-      );
-      
-      if (pendingCall) {
-        setIncomingCall(pendingCall);
+      try {
+        const activeCalls = await getActiveCalls(currentUser.id);
+        console.log('Active calls for current user:', activeCalls);
         
-        const audio = new Audio('/call-ringtone.mp3');
-        audio.loop = true;
-        audio.play().catch(e => console.error('Error playing ringtone:', e));
+        const pendingCall = activeCalls.find(call => 
+          call.recipientId === currentUser.id && call.status === 'pending'
+        );
         
-        (window as any).callRingtone = audio;
-      }
-      
-      const activeCallData = activeCalls.find(call => 
-        (call.callerId === currentUser.id || call.recipientId === currentUser.id) && 
-        call.status === 'active'
-      );
-      
-      if (activeCallData) {
-        setActiveCall(activeCallData);
+        if (pendingCall) {
+          console.log('Found pending call on mount:', pendingCall);
+          setIncomingCall(pendingCall);
+          
+          const audio = new Audio('/call-ringtone.mp3');
+          audio.loop = true;
+          audio.play().catch(e => console.error('Error playing ringtone:', e));
+          
+          (window as any).callRingtone = audio;
+        }
+        
+        const activeCallData = activeCalls.find(call => 
+          (call.callerId === currentUser.id || call.recipientId === currentUser.id) && 
+          call.status === 'active'
+        );
+        
+        if (activeCallData) {
+          console.log('Found active call on mount:', activeCallData);
+          setActiveCall(activeCallData);
+        }
+      } catch (error) {
+        console.error('Error checking pending calls:', error);
       }
     };
     
@@ -621,6 +643,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.log('Initiating call with:', newCall);
       
       const savedCall = await saveCall(newCall);
+      console.log('Call saved successfully:', savedCall);
       
       setActiveCall(savedCall);
       
@@ -645,6 +668,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.log('Accepting call:', updatedCall);
       
       const savedCall = await updateCall(updatedCall);
+      console.log('Call accepted successfully:', savedCall);
       
       setActiveCall(savedCall);
       setIncomingCall(null);
