@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -44,59 +43,62 @@ export function CallModal({ incomingCall, activeCall }: CallModalProps) {
   };
   
   const handleAcceptCall = async () => {
-    if (incomingCall) {
-      try {
-        await acceptCall(incomingCall.id);
-        toast({
-          title: "Call Accepted",
-          description: `You are now in a call with ${incomingCall.caller.name}`,
-        });
-      } catch (error) {
-        console.error('Error accepting call:', error);
-        toast({
-          title: "Call Error",
-          description: "Failed to accept the call. Please try again.",
-          variant: "destructive"
-        });
-      }
+    if (!incomingCall) return;
+    
+    try {
+      console.log('Accepting call ID:', incomingCall.id);
+      await acceptCall(incomingCall.id);
+      toast({
+        title: "Call Accepted",
+        description: `You are now in a call with ${incomingCall.caller.name}`,
+      });
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      toast({
+        title: "Call Error",
+        description: "Failed to accept the call. Please check database configuration.",
+        variant: "destructive"
+      });
     }
   };
   
   const handleDeclineCall = async () => {
-    if (incomingCall) {
-      try {
-        await declineCall(incomingCall.id);
-        toast({
-          title: "Call Declined",
-          description: "You declined the incoming call",
-        });
-      } catch (error) {
-        console.error('Error declining call:', error);
-        toast({
-          title: "Error",
-          description: "Failed to decline the call",
-          variant: "destructive"
-        });
-      }
+    if (!incomingCall) return;
+    
+    try {
+      console.log('Declining call ID:', incomingCall.id);
+      await declineCall(incomingCall.id);
+      toast({
+        title: "Call Declined",
+        description: "You declined the incoming call",
+      });
+    } catch (error) {
+      console.error('Error declining call:', error);
+      toast({
+        title: "Error",
+        description: "Failed to decline the call. Please check database configuration.",
+        variant: "destructive"
+      });
     }
   };
   
   const handleEndCall = async () => {
-    if (activeCall) {
-      try {
-        await endCall(activeCall.id);
-        toast({
-          title: "Call Ended",
-          description: `Call duration: ${formatTime(callDuration)}`,
-        });
-      } catch (error) {
-        console.error('Error ending call:', error);
-        toast({
-          title: "Error",
-          description: "Failed to end the call properly",
-          variant: "destructive"
-        });
-      }
+    if (!activeCall) return;
+    
+    try {
+      console.log('Ending call ID:', activeCall.id);
+      await endCall(activeCall.id);
+      toast({
+        title: "Call Ended",
+        description: `Call duration: ${formatTime(callDuration)}`,
+      });
+    } catch (error) {
+      console.error('Error ending call:', error);
+      toast({
+        title: "Error",
+        description: "Failed to end the call properly. Please check database configuration.",
+        variant: "destructive"
+      });
     }
   };
   

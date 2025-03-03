@@ -25,6 +25,7 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
 
   const handleVoiceCall = async () => {
     try {
+      console.log('Initiating voice call with user:', user.id);
       await initiateCall(user.id, false);
       toast({
         title: 'Starting Call',
@@ -34,7 +35,7 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       console.error('Voice call error:', error);
       toast({
         title: 'Call Failed',
-        description: 'Could not initiate the call. Please try again.',
+        description: 'Could not initiate the call. Please check database configuration.',
         variant: 'destructive'
       });
     }
@@ -42,6 +43,7 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
 
   const handleVideoCall = async () => {
     try {
+      console.log('Initiating video call with user:', user.id);
       await initiateCall(user.id, true);
       toast({
         title: 'Starting Video Call',
@@ -51,7 +53,7 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       console.error('Video call error:', error);
       toast({
         title: 'Video Call Failed',
-        description: 'Could not initiate the video call. Please try again.',
+        description: 'Could not initiate the video call. Please check database configuration.',
         variant: 'destructive'
       });
     }
