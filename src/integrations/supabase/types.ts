@@ -9,6 +9,51 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      calls: {
+        Row: {
+          caller_id: string | null
+          end_time: string | null
+          id: string
+          is_video: boolean | null
+          recipient_id: string | null
+          start_time: string | null
+          status: string
+        }
+        Insert: {
+          caller_id?: string | null
+          end_time?: string | null
+          id: string
+          is_video?: boolean | null
+          recipient_id?: string | null
+          start_time?: string | null
+          status?: string
+        }
+        Update: {
+          caller_id?: string | null
+          end_time?: string | null
+          id?: string
+          is_video?: boolean | null
+          recipient_id?: string | null
+          start_time?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_caller_id_fkey"
+            columns: ["caller_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
