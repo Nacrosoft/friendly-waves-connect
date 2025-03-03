@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/ChatHeader';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -13,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 
 interface ChatViewProps {
   conversation: any;
-  onBackClick?: () => void; // Added for mobile back button
+  onBackClick: () => void; // Required for back button functionality
 }
 
 export function ChatView({ conversation, onBackClick }: ChatViewProps) {

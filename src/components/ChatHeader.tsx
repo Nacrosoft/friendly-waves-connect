@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ChatHeaderProps {
   user: User;
-  onBackClick?: () => void; // Added for mobile back button
+  onBackClick: () => void; // This is now required
 }
 
 export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
@@ -67,11 +67,15 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       transition={{ duration: 0.3 }}
     >
       <div className="flex items-center gap-3">
-        {isMobile && onBackClick && (
-          <Button variant="ghost" size="icon" onClick={onBackClick} className="mr-1 hover:bg-accent/30">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onBackClick} 
+          className="hover:bg-accent/30"
+          aria-label="Back to conversations"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         
         <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
           <UserAvatar user={user} />
