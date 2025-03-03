@@ -7,8 +7,9 @@ import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
 import { Message } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Lock } from 'lucide-react';
 import { StoryCircle } from './story/StoryCircle';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 interface ChatViewProps {
   conversation: any;
@@ -292,6 +293,43 @@ export function ChatView({ conversation, onBackClick }: ChatViewProps) {
             </div>
           </div>
         )}
+        
+        {/* End-to-End Encryption Information */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <div className="flex items-center justify-center">
+              <button className="text-xs text-muted-foreground flex items-center gap-1.5 hover:text-primary transition-colors">
+                <Lock className="h-3 w-3" />
+                End-to-End Encryption
+              </button>
+            </div>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>End-to-End Encryption</DialogTitle>
+              <DialogDescription>
+                Your messages are protected with advanced encryption technology.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p>End-to-End Encryption (E2EE) ensures that your conversations remain private. Only you and the person you're communicating with can read the messages.</p>
+              
+              <div className="bg-secondary/30 p-3 rounded-md text-sm">
+                <p className="font-medium mb-2">How it works:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Messages are encrypted on your device before being sent</li>
+                  <li>Only the recipient's device can decrypt the messages</li>
+                  <li>Not even Meetefy can read your encrypted conversations</li>
+                  <li>All media and attachments are also encrypted</li>
+                </ul>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                This level of security means your conversations are protected from third parties, including service providers and potential attackers.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
         
         {renderMessages()}
       </div>
