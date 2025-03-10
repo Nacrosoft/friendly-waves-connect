@@ -1,12 +1,14 @@
+
 import React from 'react';
 import { UserAvatar } from '@/components/UserAvatar';
-import { Phone, Video, Info, ArrowLeft } from 'lucide-react';
+import { Phone, Video, Info, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { User } from '@/types/chat';
 import { useMessaging } from '@/context/MessagingContext';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ChatHeaderProps {
   user: User;
@@ -17,6 +19,7 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { initiateCall } = useMessaging();
   const { toast } = useToast();
+  const [ttsEnabled, setTtsEnabled] = React.useState(true);
   
   if (!user) return null;
   
@@ -36,6 +39,20 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       description: 'Video calls are temporarily unavailable while we upgrade our systems. Please try again later.',
       variant: 'default'
     });
+  };
+
+  const toggleTTS = () => {
+    setTtsEnabled(prev => !prev);
+    toast({
+      title: ttsEnabled ? 'Text-to-Speech Disabled' : 'Text-to-Speech Enabled',
+      description: ttsEnabled 
+        ? 'Text-to-Speech feature has been turned off.' 
+        : 'Text-to-Speech feature has been turned on.',
+      variant: 'default'
+    });
+
+    // You could save this preference to localStorage or user settings
+    localStorage.setItem('tts-enabled', (!ttsEnabled).toString());
   };
   
   return (
@@ -76,6 +93,31 @@ export function ChatHeader({ user, onBackClick }: ChatHeaderProps) {
       </div>
       
       <div className="flex items-center gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={toggleTTS} 
+                  className="hover:bg-accent/30"
+                  aria-label={ttsEnabled ? "Disable Text-to-Speech" : "Enable Text-to-Speech"}
+                >
+                  {ttsEnabled ? (
+                    <Volume2 className="h-5 w-5" />
+                  ) : (
+                    <VolumeX className="h-5 w-5" />
+                  )}
+                </Button>
+              </motion.div>
+            </TooltipTrigger>
+            <TooltipContent>
+              {ttsEnabled ? "Disable Text-to-Speech" : "Enable Text-to-Speech"}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
         <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
           <Button variant="ghost" size="icon" onClick={handleVoiceCall} className="hover:bg-accent/30">
             <Phone className="h-5 w-5" />

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useMessaging } from '@/context/MessagingContext';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
+import { TextToSpeech } from './TextToSpeech';
 
 interface MessageBubbleProps {
   message: Message;
@@ -29,7 +29,6 @@ export function MessageBubble({ message, isSent, onReaction, onEdit, onReply, on
   const { currentUser } = useAuth();
   const { conversations } = useMessaging();
   
-  // Get the sender information from the conversations
   const getSender = () => {
     for (const conversation of conversations) {
       const sender = conversation.participants.find(user => user.id === message.senderId);
@@ -80,7 +79,6 @@ export function MessageBubble({ message, isSent, onReaction, onEdit, onReply, on
   const renderReactions = () => {
     if (!message.reactions || message.reactions.length === 0) return null;
     
-    // Group reactions by emoji
     const groupedReactions = message.reactions.reduce((acc, reaction) => {
       const key = reaction.isCustom ? `custom-${reaction.customEmojiId}` : reaction.emoji;
       if (!acc[key]) {
@@ -135,7 +133,6 @@ export function MessageBubble({ message, isSent, onReaction, onEdit, onReply, on
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  // Check if message is deleted
   if (message.deleted) {
     return (
       <div className={`flex mb-4 ${isSent ? 'justify-end' : 'justify-start'}`}>
@@ -288,6 +285,15 @@ export function MessageBubble({ message, isSent, onReaction, onEdit, onReply, on
         
         {!isEditing && (
           <div className={`flex mt-1 ${isSent ? 'justify-end' : 'justify-start'}`}>
+            {message.type === 'text' && (
+              <TextToSpeech 
+                text={message.text} 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 opacity-50 hover:opacity-100"
+              />
+            )}
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 hover:opacity-100">
